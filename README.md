@@ -1,3 +1,8 @@
+> **Fork of [RossValheimMods](https://github.com/RossTools/RossValheimMods) by rossxwest, maintained by UberMorgott. Only ItemDrawers is shipped from this fork.**
+> Stock ItemDrawers 1.3.0 (version, GUID and DLL name unchanged) plus one fix: no missing-shader warning when the drawer icon atlas builds.
+> Upstream PR: https://github.com/RossTools/RossValheimMods/pull/27 (issue #28). Drop this fork and return to stock ItemDrawers once upstream releases the fix.
+> Release tags: `v<upstream>-morgott.<n>`.
+
 # RossValheimMods
 
 BepInEx mods for Valheim 1.0. One directory per mod, each independently
