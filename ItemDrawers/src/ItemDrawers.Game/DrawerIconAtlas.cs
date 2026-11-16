@@ -247,10 +247,10 @@ namespace ItemDrawers.Game
         /// Valheim 1.0 runs Unity 6000.0.75f1 on its own render pipeline, not
         /// the built-in pipeline "Unlit/Transparent" was written for --
         /// confirmed live: Shader.Find("Unlit/Transparent") returns null on
-        /// this build, so the fallback chain below is what's actually in
-        /// play, not a theoretical safety net.
+        /// this build, so it is not tried (it only logged a warning every
+        /// atlas build).
         ///
-        /// "Sprites/Default" is tried next, ahead of "UI/Default": it is the
+        /// "Sprites/Default" is tried first, ahead of "UI/Default": it is the
         /// shader every SpriteRenderer in the game already renders with, and
         /// a SpriteRenderer is a 3D-scene object drawn by the same kind of
         /// renderer this atlas's quad uses (MeshRenderer), just as unlit and
@@ -269,7 +269,7 @@ namespace ItemDrawers.Game
         /// so no extra assembly reference is needed beyond what the project
         /// already has.
         /// </summary>
-        private static readonly string[] ShaderCandidates = { "Unlit/Transparent", "Sprites/Default", "UI/Default" };
+        private static readonly string[] ShaderCandidates = { "Sprites/Default", "UI/Default" };
 
         /// <summary>
         /// Tries each of ShaderCandidates, in order, via Shader.Find, logging
