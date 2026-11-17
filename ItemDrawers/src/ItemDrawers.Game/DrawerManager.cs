@@ -20,14 +20,16 @@ namespace ItemDrawers.Game
         public readonly ZDOID DrawerId;
         public readonly long TargetOwner;
         public readonly Player Player;
+        public readonly string ItemName;
         public readonly int Requested;
         public readonly Vector3 PlayerPosition;
 
-        public PendingWithdrawal(ZDOID drawerId, long targetOwner, Player player, int requested, Vector3 playerPosition)
+        public PendingWithdrawal(ZDOID drawerId, long targetOwner, Player player, string itemName, int requested, Vector3 playerPosition)
         {
             DrawerId = drawerId;
             TargetOwner = targetOwner;
             Player = player;
+            ItemName = itemName;
             Requested = requested;
             PlayerPosition = playerPosition;
         }
@@ -499,7 +501,7 @@ namespace ItemDrawers.Game
         {
             var drawer = FindLive(payload.DrawerId);
             if (drawer == null) { GiveUpWithdrawal(id, payload); _pendingWithdrawals.Remove(id, out _); return; }
-            drawer.SendWithdrawRequestRpc(id, payload.TargetOwner, payload.Requested);
+            drawer.SendWithdrawRequestRpc(id, payload.TargetOwner, payload.ItemName, payload.Requested);
         }
 
         private void RetryDeposit(long id, PendingDeposit payload)
@@ -619,6 +621,7 @@ namespace ItemDrawers.Game
         {
             public DrawerComponent Drawer;
             public Player Player;
+            public string ItemName;
             public int Requested;
             public float Deadline;
         }
@@ -627,7 +630,7 @@ namespace ItemDrawers.Game
         /// Queues a withdrawal to run as soon as ownership settles. Called
         /// instead of refusing the player outright.
         /// </summary>
-        internal void DeferWithdraw(DrawerComponent drawer, Player player, int requested, float timeoutSeconds)
+        internal void DeferWithdraw(DrawerComponent drawer, Player player, string itemName, int requested, float timeoutSeconds)
         {
             if (drawer == null || player == null || requested <= 0) return;
 
@@ -641,6 +644,7 @@ namespace ItemDrawers.Game
             {
                 Drawer = drawer,
                 Player = player,
+                ItemName = itemName,
                 Requested = requested,
                 Deadline = Time.time + timeoutSeconds,
             });
@@ -658,7 +662,7 @@ namespace ItemDrawers.Game
                     continue;
                 }
 
-                if (pending.Drawer.TryCompleteDeferredWithdraw(pending.Player, pending.Requested))
+                if (pending.Drawer.TryCompleteDeferredWithdraw(pending.Player, pending.ItemName, pending.Requested))
                 {
                     _deferredWithdraws.RemoveAt(i);
                     continue;

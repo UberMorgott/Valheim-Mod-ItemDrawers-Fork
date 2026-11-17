@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+- Taking from a drawer another player owns gives only the item you saw in
+  it. If the drawer was emptied and refilled with something else before
+  your request arrived, you get nothing instead of the new item.
+- Every player on a server needs 1.4 (the withdraw request now names the
+  item).
+
 ## 1.3.0
 
 - A drawer recipe changed in the server's config now applies to everyone

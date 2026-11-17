@@ -365,7 +365,7 @@ namespace ItemDrawers.Game
             // client that has this drawer instantiated, since any of them
             // may end up owning the ZDO at some point (ownership migrates
             // by proximity -- confirmed by decompiling ZDOMan.ReleaseZDOS).
-            _view.Register<long, int>(RpcReqWithdraw, RPC_RequestWithdraw);
+            _view.Register<long, string, int>(RpcReqWithdraw, RPC_RequestWithdraw);
             _view.Register<long, string, int>(RpcGrantWithdraw, RPC_GrantWithdraw);
             _view.Register<long, string, int>(RpcReqDeposit, RPC_RequestDeposit);
             _view.Register<long, int>(RpcGrantDeposit, RPC_GrantDeposit);
@@ -1005,12 +1005,12 @@ namespace ItemDrawers.Game
                     if (pendingManager != null)
                     {
                         DrawerDiagnostics.DeferredWithdraws++;
-                        pendingManager.DeferWithdraw(this, player, requested, DeferredWithdrawTimeout);
+                        pendingManager.DeferWithdraw(this, player, itemName, requested, DeferredWithdrawTimeout);
                         return;
                     }
                 }
 
-                WithdrawAsOwner(player, requested);
+                WithdrawAsOwner(player, itemName, requested);
                 return;
             }
 
@@ -1044,7 +1044,7 @@ namespace ItemDrawers.Game
 
                 if (_view.IsOwner())
                 {
-                    WithdrawAsOwner(player, requested);
+                    WithdrawAsOwner(player, itemName, requested);
                     return;
                 }
 
@@ -1054,9 +1054,9 @@ namespace ItemDrawers.Game
 
             long id = manager.NextRequestId();
             manager.AddPendingWithdrawal(id, new PendingWithdrawal(
-                drawerId: _zdoId, targetOwner: targetOwner, player: player,
+                drawerId: _zdoId, targetOwner: targetOwner, player: player, itemName: itemName,
                 requested: requested, playerPosition: player.transform.position));
-            SendWithdrawRequestRpc(id, targetOwner, requested);
+            SendWithdrawRequestRpc(id, targetOwner, itemName, requested);
         }
 
         /// <summary>
@@ -1073,7 +1073,7 @@ namespace ItemDrawers.Game
         /// Runs a withdrawal that was held while ownership settled. Returns
         /// false while it still cannot run, so the caller keeps waiting.
         /// </summary>
-        internal bool TryCompleteDeferredWithdraw(Player player, int requested)
+        internal bool TryCompleteDeferredWithdraw(Player player, string itemName, int requested)
         {
             if (_view == null || !_view.IsValid()) return true;   // drawer gone; stop waiting
 
@@ -1082,13 +1082,13 @@ namespace ItemDrawers.Game
             // not a failure.
             if (!_view.IsOwner())
             {
-                RequestWithdraw(player, Snapshot.ItemName, requested);
+                RequestWithdraw(player, itemName, requested);
                 return true;
             }
 
             if (!OwnershipSettled()) return false;
 
-            WithdrawAsOwner(player, requested);
+            WithdrawAsOwner(player, itemName, requested);
             return true;
         }
 
@@ -1097,13 +1097,13 @@ namespace ItemDrawers.Game
         /// by the already-owner path and the claim-an-unowned-drawer path, so
         /// the two cannot drift.
         /// </summary>
-        private void WithdrawAsOwner(Player player, int requested)
+        private void WithdrawAsOwner(Player player, string itemName, int requested)
         {
             // Nothing has been given yet, so a refusal costs nothing.
             if (RefuseWhileUnsettled(player)) return;
 
             var current = Snapshot;
-            var outcome = DrawerState.WithdrawExact(current, requested);
+            var outcome = DrawerState.WithdrawExact(current, requested, itemName);
             if (outcome.MovedToPlayer <= 0) return;
             if (!WriteOwned(current, outcome.Result)) return;
             ItemFacts.GiveToPlayer(player, current.ItemName, outcome.MovedToPlayer);
@@ -1116,12 +1116,12 @@ namespace ItemDrawers.Game
         /// issues later. See the class-level comment on the RPC protocol
         /// for why a retry must never target a freshly-resolved owner.
         /// </summary>
-        internal void SendWithdrawRequestRpc(long id, long targetOwner, int requested)
+        internal void SendWithdrawRequestRpc(long id, long targetOwner, string itemName, int requested)
         {
             if (_view != null && _view.IsValid())
             {
                 DrawerDiagnostics.RequestSent(id, Time.time);
-                _view.InvokeRPC(targetOwner, RpcReqWithdraw, id, requested);
+                _view.InvokeRPC(targetOwner, RpcReqWithdraw, id, itemName, requested);
             }
         }
 
@@ -1147,8 +1147,13 @@ namespace ItemDrawers.Game
         /// something RPC_GrantWithdraw could never actually hand to
         /// anyone, since ItemFacts.GiveToPlayer silently no-ops on the
         /// exact same check.
+        ///
+        /// The request names the item the requester saw. A drawer refilled
+        /// with something else since then grants nothing (and replies with
+        /// what it holds now) instead of handing over an item nobody asked
+        /// for.
         /// </summary>
-        private void RPC_RequestWithdraw(long sender, long id, int requested)
+        private void RPC_RequestWithdraw(long sender, long id, string itemName, int requested)
         {
             if (_view == null || !_view.IsValid() || !_view.IsOwner()) return;
 
@@ -1168,7 +1173,7 @@ namespace ItemDrawers.Game
             int granted = 0;
             if (current.IsAssigned && ItemFacts.Drop(current.ItemName) != null)
             {
-                var outcome = DrawerState.WithdrawExact(current, requested);
+                var outcome = DrawerState.WithdrawExact(current, requested, itemName);
                 if (outcome.MovedToPlayer > 0 && WriteOwned(current, outcome.Result))
                     granted = outcome.MovedToPlayer;
             }

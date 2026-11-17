@@ -64,6 +64,14 @@ namespace ItemDrawers.Core
             return DrawerOutcome.Withdrew(new DrawerSnapshot(current.ItemName, current.Amount - moved), moved);
         }
 
+        /// <summary>
+        /// WithdrawExact for a request made against <paramref name="expectedItem"/>,
+        /// the item the requester saw. A drawer refilled with another item
+        /// since then grants nothing rather than handing that item over.
+        /// </summary>
+        public static DrawerOutcome WithdrawExact(DrawerSnapshot current, int requested, string expectedItem) =>
+            current.ItemName == expectedItem ? WithdrawExact(current, requested) : DrawerOutcome.Withdrew(current, 0);
+
         public static DrawerOutcome Clear(DrawerSnapshot current)
         {
             if (!current.IsEmpty) return DrawerOutcome.Refused(current, NotEmptyYet);

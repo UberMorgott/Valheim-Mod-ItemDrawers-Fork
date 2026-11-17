@@ -306,6 +306,24 @@ namespace ItemDrawers.Core.Tests
         }
 
         [Fact]
+        public void Withdraw_request_for_an_item_the_drawer_no_longer_holds_grants_nothing()
+        {
+            // Requester saw Stone; the owner's drawer was emptied and refilled with Wood since.
+            var r = DrawerState.WithdrawExact(Wood(100), requested: 30, expectedItem: "Stone");
+            Assert.Equal(0, r.MovedToPlayer);
+            Assert.Equal(100, r.Result.Amount);
+            Assert.Equal("Wood", r.Result.ItemName);
+        }
+
+        [Fact]
+        public void Withdraw_request_for_the_item_held_grants_as_before()
+        {
+            var r = DrawerState.WithdrawExact(Wood(100), requested: 30, expectedItem: "Wood");
+            Assert.Equal(30, r.MovedToPlayer);
+            Assert.Equal(70, r.Result.Amount);
+        }
+
+        [Fact]
         public void Withdraw_request_under_the_true_amount_grants_exactly_what_was_asked()
         {
             var r = DrawerState.WithdrawExact(Wood(500), requested: 30);
