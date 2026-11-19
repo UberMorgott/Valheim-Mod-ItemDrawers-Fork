@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1
+
+- Drawer icons build again on the CPU copy path when many icons only fit
+  the atlas scaled down. A dedicated server without graphics no longer
+  builds the icon atlas at all.
+
 ## 1.4.0
 
 - Taking from a drawer another player owns gives only the item you saw in

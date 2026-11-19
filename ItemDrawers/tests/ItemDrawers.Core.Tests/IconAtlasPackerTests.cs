@@ -21,6 +21,26 @@ namespace ItemDrawers.Core.Tests
             Assert.Equal(500, layout.Rects.Count);
         }
 
+        // Wave 10c pack: 1325 Morgott.UI 128 px icons. Native size overflows 4096,
+        // x0.875 (112 px) still does, x0.75 (96 px) fits -- and its rects are the
+        // scaled size, which the atlas copy must write, not the sprite's native size.
+        [Fact]
+        public void Overflow_at_native_size_fits_once_scaled_and_rects_carry_scaled_size()
+        {
+            Assert.Throws<InvalidOperationException>(() => IconAtlasPacker.Pack(Uniform(1325, 128)));
+            Assert.Throws<InvalidOperationException>(() => IconAtlasPacker.Pack(Uniform(1325, 112)));
+
+            var layout = IconAtlasPacker.Pack(Uniform(1325, 96));
+            Assert.Equal(4096, layout.Width);
+            Assert.Equal(1325, layout.Rects.Count);
+            foreach (var r in layout.Rects.Values)
+            {
+                Assert.Equal(96, r.Width);
+                Assert.Equal(96, r.Height);
+                Assert.True(r.X + r.Width <= layout.Width && r.Y + r.Height <= layout.Height);
+            }
+        }
+
         [Fact]
         public void No_two_icons_overlap()
         {

@@ -41,6 +41,11 @@ namespace ItemDrawers.Game
         {
             if (IsBuilt) return;
 
+            // Headless server (-nographics): nothing renders the atlas, and with
+            // no device the copy has no GPU to blit through. TryGetUv then reports
+            // no icon, which a server that draws nothing never asks for anyway.
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;
+
             try
             {
                 BuildInternal();
@@ -387,7 +392,7 @@ namespace ItemDrawers.Game
         }
 
         /// <summary>
-        /// The original path: a whole-sheet blit and readback per icon.
+        /// The original path: a blit and readback per icon, sized to its atlas rect.
         /// Used only when the device cannot CopyTexture. Returns the number
         /// of source sheets, for the build log.
         /// </summary>
@@ -400,9 +405,10 @@ namespace ItemDrawers.Game
             {
                 if (!sprites.TryGetValue(pair.Key, out var sprite)) continue;
                 sheets.Add(sprite.texture);
-                if (!TryReadSprite(sprite, out var pixels, out int w, out int h)) continue;
+                var dest = pair.Value;
+                if (!TryReadSprite(sprite, dest.Width, dest.Height, out var pixels)) continue;
 
-                _texture.SetPixels32(pair.Value.X, pair.Value.Y, w, h, pixels);
+                _texture.SetPixels32(dest.X, dest.Y, dest.Width, dest.Height, pixels);
             }
 
             return sheets.Count;
@@ -427,13 +433,11 @@ namespace ItemDrawers.Game
         /// wrong icon's corner, offset and too small: a genuinely different,
         /// smaller region of a neighbouring icon).
         /// </summary>
-        private static bool TryReadSprite(Sprite sprite, out Color32[] pixels, out int width, out int height)
+        private static bool TryReadSprite(Sprite sprite, int width, int height, out Color32[] pixels)
         {
             pixels = null;
             Rect texRect = sprite.textureRect;
-            width = Mathf.RoundToInt(texRect.width);
-            height = Mathf.RoundToInt(texRect.height);
-            if (width <= 0 || height <= 0) return false;
+            if (width <= 0 || height <= 0 || texRect.width <= 0 || texRect.height <= 0) return false;
 
             // This was RenderTextureReadWrite.Linear, and that was the root
             // cause of the reported dark icons, not a lighting/shader
@@ -464,16 +468,22 @@ namespace ItemDrawers.Game
             // and "as sampled by the drawer material", the same as for
             // every other sprite the game renders.
             var previous = RenderTexture.active;
-            var rt = RenderTexture.GetTemporary(sprite.texture.width, sprite.texture.height, 0,
+            // Blit only the sprite's sheet region, resampled to the atlas rect:
+            // the layout may hold icons scaled below native size (a pack that
+            // overflowed at native size), and at native size this is 1:1.
+            var rt = RenderTexture.GetTemporary(width, height, 0,
                 RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
 
             try
             {
-                Graphics.Blit(sprite.texture, rt);
+                float sw = sprite.texture.width, sh = sprite.texture.height;
+                Graphics.Blit(sprite.texture, rt,
+                    new Vector2(texRect.width / sw, texRect.height / sh),
+                    new Vector2(texRect.x / sw, texRect.y / sh));
                 RenderTexture.active = rt;
 
                 var readable = new Texture2D(width, height, TextureFormat.RGBA32, false);
-                readable.ReadPixels(new Rect(texRect.x, texRect.y, width, height), 0, 0);
+                readable.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 readable.Apply();
                 pixels = readable.GetPixels32();
                 Object.Destroy(readable);
