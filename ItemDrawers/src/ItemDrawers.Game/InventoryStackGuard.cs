@@ -42,6 +42,10 @@ namespace ItemDrawers.Game
     /// either way, if the guarded AddItem call it feeds into only places
     /// part of the stack, the remainder is already removed from its source
     /// with nowhere to go. See that patch's comment.
+    ///
+    /// Every guard also refuses a cheated item entering a drawer view
+    /// (RefusesCheated): a drawer keeps only name + count, so the item would
+    /// come back clean. Vanilla's own "did not fit" result keeps it at the source.
     /// </summary>
     internal static class InventoryStackGuard
     {
@@ -52,6 +56,9 @@ namespace ItemDrawers.Game
             && moving > item.m_shared.m_maxStackSize
             && !InventoryAccess.IsTemporary(inventory);
 
+        private static bool RefusesCheated(Inventory inventory, ItemDrop.ItemData item) =>
+            item != null && item.m_cheated && DrawerView.IsView(inventory);
+
         [HarmonyPatch(typeof(Inventory), nameof(Inventory.AddItem), new[] { typeof(ItemDrop.ItemData) })]
         private static class AddItemPatch
         {
@@ -61,6 +68,7 @@ namespace ItemDrawers.Game
 
             private static bool Prefix(Inventory __instance, ItemDrop.ItemData item, ref bool __result)
             {
+                if (RefusesCheated(__instance, item)) { __result = false; return false; }
                 if (!IsOversized(__instance, item, item == null ? 0 : item.m_stack)) return true;
                 __result = AddSplit(__instance, item, null, markCheatedOnTopUp: true);
                 return false;
@@ -76,6 +84,7 @@ namespace ItemDrawers.Game
 
             private static bool Prefix(Inventory __instance, ItemDrop.ItemData item, Vector2i pos, ref bool __result)
             {
+                if (RefusesCheated(__instance, item)) { __result = false; return false; }
                 if (!IsOversized(__instance, item, item == null ? 0 : item.m_stack)) return true;
                 __result = AddSplit(__instance, item, pos, markCheatedOnTopUp: false);
                 return false;
@@ -93,6 +102,7 @@ namespace ItemDrawers.Game
 
             private static bool Prefix(Inventory __instance, ItemDrop.ItemData item, int amount, int x, int y, ref bool __result)
             {
+                if (RefusesCheated(__instance, item)) { __result = false; return false; }
                 if (item == null) return true;
                 int moving = Math.Min(amount, item.m_stack);
                 if (!IsOversized(__instance, item, moving)) return true;
@@ -157,6 +167,12 @@ namespace ItemDrawers.Game
                 if (destInventory == null) return true;
 
                 var itemAt = destInventory.GetItemAt(pos.x, pos.y);
+                // Swap removes the dragged item before re-adding: refuse here, not in AddItem, or it is lost.
+                if (RefusesCheated(destInventory, item) || RefusesCheated(fromInventory, itemAt))
+                {
+                    __result = false;
+                    return false;
+                }
                 if (itemAt == null || itemAt == item) return true; // empty cell, or no-op: safe to let through
 
                 bool wouldSwap = (itemAt.m_shared.m_name != item.m_shared.m_name

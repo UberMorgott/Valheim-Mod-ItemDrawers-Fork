@@ -754,6 +754,13 @@ namespace ItemDrawers.Game
                 return true;
             }
 
+            // A drawer keeps only name + count: a cheated item (ItemDrop.cs:447) would come back clean.
+            if (item.m_cheated)
+            {
+                player.Message(MessageHud.MessageType.Center, "$itemdrawers_cheated");
+                return true;
+            }
+
             // Only the prefab name is ever written to a drawer's ZDO.
             // m_shared.m_name is a localization token; if
             // that were persisted instead, every later ObjectDB lookup for
@@ -847,7 +854,7 @@ namespace ItemDrawers.Game
             int total = 0;
             foreach (var item in inventory.GetAllItems())
             {
-                if (ItemFacts.PrefabNameOf(item) != current.ItemName) continue;
+                if (ItemFacts.PrefabNameOf(item) != current.ItemName || item.m_cheated) continue;
 
                 matching.Add(item);
                 total += item.m_stack;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using ItemDrawers.Core;
 using UnityEngine;
 
@@ -60,6 +61,11 @@ namespace ItemDrawers.Game
         internal static readonly int KeyViewSlotsHash = "ViewSlots".GetStableHashCode();
         internal static readonly int KeyViewBaselineHash = "ViewBaseline".GetStableHashCode();
 
+        // Every live view's Inventory, so InventoryStackGuard can refuse cheated items at the door.
+        private static readonly ConditionalWeakTable<Inventory, DrawerView> s_views = new ConditionalWeakTable<Inventory, DrawerView>();
+
+        internal static bool IsView(Inventory inventory) => inventory != null && s_views.TryGetValue(inventory, out _);
+
         private readonly DrawerComponent _drawer;
         private readonly ZNetView _nview;
         private readonly Inventory _inventory;
@@ -111,6 +117,7 @@ namespace ItemDrawers.Game
             _nview = nview;
             _inventory = new Inventory("drawer", null, 0, 1);
             _inventory.m_onChanged = (Action)Delegate.Combine(_inventory.m_onChanged, new Action(OnInventoryChanged));
+            s_views.Add(_inventory, this);
         }
 
         internal Inventory Inventory => _inventory;

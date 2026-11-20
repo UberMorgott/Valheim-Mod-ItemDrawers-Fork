@@ -384,7 +384,8 @@ namespace ItemDrawers.Game
                 if ((drop.transform.position - playerPos).sqrMagnitude > scanRangeSq) continue;
 
                 if (drop.m_nview == null || !drop.m_nview.IsValid()) continue;
-                if (drop.m_itemData == null || drop.m_itemData.m_shared.m_maxStackSize <= 1) continue;
+                // Cheated drops stay on the ground: a drawer keeps only name + count.
+                if (drop.m_itemData == null || drop.m_itemData.m_shared.m_maxStackSize <= 1 || drop.m_itemData.m_cheated) continue;
 
                 string itemName = drop.m_itemData.m_dropPrefab != null
                     ? drop.m_itemData.m_dropPrefab.name
