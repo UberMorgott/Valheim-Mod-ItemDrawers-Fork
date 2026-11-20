@@ -21,7 +21,7 @@ namespace ItemDrawers.Game
     {
         public const string PluginGuid = "com.rossdwest.itemdrawers";
         public const string PluginName = "ItemDrawers";
-        public const string PluginVersion = "1.4.3";
+        public const string PluginVersion = "1.4.4";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;
@@ -32,6 +32,9 @@ namespace ItemDrawers.Game
         {
             Log = Logger;
             Morgott.Core.Services.Register<Morgott.Core.IDrawerStore>(DrawerStore.Instance = new DrawerStore());
+            var texts = LocalizationManager.Instance.GetLocalization();
+            texts.AddTranslation("English", ItemDrawers.Core.DrawerTexts.English);
+            texts.AddTranslation("Russian", ItemDrawers.Core.DrawerTexts.Russian);
             _harmony = new Harmony(PluginGuid);
 
             // Before any patching, so that if a Valheim update has moved

@@ -28,10 +28,10 @@ namespace ItemDrawers.Game
         {
             switch (tier)
             {
-                case DrawerTier.Wood: return "Item Drawer";
-                case DrawerTier.Stone: return "Stone Item Drawer";
-                case DrawerTier.BlackMarble: return "Black Marble Item Drawer";
-                default: return "Item Drawer";
+                case DrawerTier.Wood: return "$itemdrawers_wood";
+                case DrawerTier.Stone: return "$itemdrawers_stone";
+                case DrawerTier.BlackMarble: return "$itemdrawers_blackmarble";
+                default: return "$itemdrawers_wood";
             }
         }
 

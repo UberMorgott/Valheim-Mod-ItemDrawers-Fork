@@ -57,7 +57,7 @@ namespace ItemDrawers.Game
         // visible rather than a dead keypress with no feedback. Internal,
         // not private: DrawerManager's give-up handling for a timed-out
         // request shows this same message.
-        internal const string CommitFailedMessage = "Try again";
+        internal const string CommitFailedMessage = "$itemdrawers_try_again";
 
         // ---------- RPC-to-owner mutation protocol ----------
         // A player-driven mutation is a REQUEST to the ZDO's owner, naming
@@ -750,7 +750,7 @@ namespace ItemDrawers.Game
             if (item.m_shared.m_maxStackSize <= 1)
             {
                 player.Message(MessageHud.MessageType.Center,
-                    "Drawers only hold stackable items");
+                    "$itemdrawers_stackable_only");
                 return true;
             }
 
@@ -762,7 +762,7 @@ namespace ItemDrawers.Game
             string itemName = ItemFacts.PrefabNameOf(item);
             if (itemName == null)
             {
-                player.Message(MessageHud.MessageType.Center, "Cannot identify this item");
+                player.Message(MessageHud.MessageType.Center, "$itemdrawers_unknown_item");
                 return true;
             }
 
@@ -786,7 +786,7 @@ namespace ItemDrawers.Game
             // no partial-removal case to reconcile here.
             if (!player.GetInventory().RemoveItem(item, outcome.MovedToDrawer))
             {
-                player.Message(MessageHud.MessageType.Center, "Could not remove item");
+                player.Message(MessageHud.MessageType.Center, "$itemdrawers_remove_failed");
                 return true;
             }
 
@@ -855,7 +855,7 @@ namespace ItemDrawers.Game
 
             if (total <= 0)
             {
-                player.Message(MessageHud.MessageType.Center, "You have none of those");
+                player.Message(MessageHud.MessageType.Center, "$itemdrawers_none_carried");
                 return true;
             }
 
@@ -895,7 +895,7 @@ namespace ItemDrawers.Game
 
             if (removed <= 0)
             {
-                player.Message(MessageHud.MessageType.Center, "You have none of those");
+                player.Message(MessageHud.MessageType.Center, "$itemdrawers_none_carried");
                 return true;
             }
 
@@ -945,7 +945,7 @@ namespace ItemDrawers.Game
             // the withdrawal already granted.
             if (ItemFacts.Drop(current.ItemName) == null)
             {
-                player.Message(MessageHud.MessageType.Center, "Cannot identify this item");
+                player.Message(MessageHud.MessageType.Center, "$itemdrawers_unknown_item");
                 return;
             }
 
@@ -1420,7 +1420,7 @@ namespace ItemDrawers.Game
         private static void AnnounceDeposit(Player player, string itemName, int accepted)
         {
             if (accepted <= 0) return;
-            player.Message(MessageHud.MessageType.TopLeft, $"Stored {accepted} {ItemFacts.LocalizedName(itemName)}");
+            player.Message(MessageHud.MessageType.TopLeft, $"$itemdrawers_stored {accepted} {ItemFacts.LocalizedName(itemName)}");
         }
 
         /// <summary>
@@ -2154,7 +2154,7 @@ namespace ItemDrawers.Game
             if (!s.IsAssigned)
                 return Localization.instance.Localize(
                     $"{DrawerTiers.DisplayName(Tier)}\n" +
-                    "[<color=yellow><b>1-8</b></color>] Store an item");
+                    "[<color=yellow><b>1-8</b></color>] $itemdrawers_store_item");
 
             string label = ItemFacts.LocalizedName(s.ItemName);
 
@@ -2178,11 +2178,11 @@ namespace ItemDrawers.Game
             string depositAll = KeyLabel(DrawerConfig.DepositAllKey);
 
             var lines = new List<string>(3);
-            if (s.Amount > 0) lines.Add("[<color=yellow><b>E</b></color>] Take stack");
+            if (s.Amount > 0) lines.Add("[<color=yellow><b>E</b></color>] $itemdrawers_take_stack");
             if (takeOne != null)
-                lines.Add($"[<color=yellow><b>{takeOne}+E</b></color>] " + (s.Amount > 0 ? "Take one" : "Unassign"));
+                lines.Add($"[<color=yellow><b>{takeOne}+E</b></color>] " + (s.Amount > 0 ? "$itemdrawers_take_one" : "$itemdrawers_unassign"));
             if (depositAll != null)
-                lines.Add($"[<color=yellow><b>{depositAll}+E</b></color>] Store all");
+                lines.Add($"[<color=yellow><b>{depositAll}+E</b></color>] $itemdrawers_store_all");
 
             string actions = string.Join("\n", lines);
 

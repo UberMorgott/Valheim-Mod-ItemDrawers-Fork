@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.4
+
+- The drawers translate their own texts (names, hover hints, messages);
+  English and Russian included.
+
 ## 1.4.3
 
 - Built against the game's own BepInEx and Harmony; the same source builds the

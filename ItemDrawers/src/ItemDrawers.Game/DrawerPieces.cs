@@ -206,7 +206,7 @@ namespace ItemDrawers.Game
             var config = new PieceConfig
             {
                 Name = DrawerTiers.DisplayName(tier),
-                Description = "Holds a great many of a single item.",
+                Description = "$itemdrawers_description",
                 PieceTable = PieceTables.Hammer,
                 CraftingStation = CraftingStations.Workbench,
                 // DrawerConfig.RecipeFor, not DrawerTiers.Recipe: the
@@ -767,7 +767,7 @@ namespace ItemDrawers.Game
 
             var piece = go.AddComponent<Piece>();
             piece.m_name = DrawerTiers.DisplayName(tier);
-            piece.m_description = "Holds a great many of a single item.";
+            piece.m_description = "$itemdrawers_description";
             // Not RenderIcon(go, tier): RenderManager.Render's own gate
             // (Jotunn's Render(RenderRequest)) checks
             // target.GetComponentsInChildren<Component>(includeInactive:
@@ -915,9 +915,9 @@ namespace ItemDrawers.Game
             // Eight corners.
             var corners = new List<Vector3>(8);
             foreach (var sx in new[] { -1f, 1f })
-            foreach (var sy in new[] { -1f, 1f })
-            foreach (var sz in new[] { -1f, 1f })
-                corners.Add(new Vector3(sx * hx, sy * hy, sz * hz));
+                foreach (var sy in new[] { -1f, 1f })
+                    foreach (var sz in new[] { -1f, 1f })
+                        corners.Add(new Vector3(sx * hx, sy * hy, sz * hz));
 
             int index = 1;
             foreach (var offset in faces)

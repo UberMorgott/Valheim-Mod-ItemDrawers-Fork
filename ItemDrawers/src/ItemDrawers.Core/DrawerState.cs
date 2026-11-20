@@ -7,13 +7,13 @@ namespace ItemDrawers.Core
     /// </summary>
     public static class DrawerState
     {
-        public const string WrongItem = "This drawer holds a different item";
-        public const string DrawerFull = "This drawer is full";
-        public const string DrawerEmpty = "This drawer has been drained";
-        public const string NotAssigned = "This drawer has not been assigned";
-        public const string BadCapacity = "This drawer has an invalid capacity";
-        public const string NotEmptyYet = "Empty the drawer before clearing it";
-        public const string NothingOffered = "Nothing to deposit";
+        public const string WrongItem = "$itemdrawers_wrong_item";
+        public const string DrawerFull = "$itemdrawers_full";
+        public const string DrawerEmpty = "$itemdrawers_drained";
+        public const string NotAssigned = "$itemdrawers_not_assigned";
+        public const string BadCapacity = "$itemdrawers_bad_capacity";
+        public const string NotEmptyYet = "$itemdrawers_not_empty";
+        public const string NothingOffered = "$itemdrawers_nothing";
 
         public static DrawerOutcome Deposit(DrawerSnapshot current, int capacity, string itemName, int offered)
         {
