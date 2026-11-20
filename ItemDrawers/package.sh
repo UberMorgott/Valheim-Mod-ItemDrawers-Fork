@@ -15,7 +15,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TS="$HERE/thunderstore"
-OUT="$HERE/src/ItemDrawers.Game/bin/Release/netstandard2.1"
+OUT="$HERE/src/ItemDrawers.Game/bin/Release/net472"
 BUILD="$TS/build"
 REQUIRED_DLLS=(ItemDrawers.dll ItemDrawers.Core.dll)
 

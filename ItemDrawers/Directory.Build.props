@@ -1,30 +1,21 @@
 <Project>
   <!--
-    Local, machine-specific overrides. Copy Directory.Build.local.props.sample to
-    Directory.Build.local.props (gitignored) and edit it, or set VALHEIM_INSTALL /
-    JOTUNN_INSTALL as environment variables instead — either works.
+    Machine-specific overrides go before the canonical import so ValheimDir (game folder,
+    default D:\Steam\steamapps\common\Valheim) can be overridden: copy
+    Directory.Build.local.props.sample to Directory.Build.local.props (gitignored), or set
+    ValheimDir as an environment variable or with -p:ValheimDir=...
   -->
   <Import Project="Directory.Build.local.props" Condition="Exists('Directory.Build.local.props')" />
-
-  <PropertyGroup>
-    <VALHEIM_INSTALL Condition="'$(VALHEIM_INSTALL)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
-    <!--
-      JotunnLib on nuget.org ships lib/net462 only — no netstandard2.0/2.1
-      asset, so a netstandard2.1 project cannot restore it as a PackageReference (it
-      is silently dropped, no compile error, no NU1701 warning). We reference the
-      Jotunn.dll that is already installed for the dev profile directly instead.
-    -->
-    <JOTUNN_INSTALL Condition="'$(JOTUNN_INSTALL)' == ''">C:\Users\ross\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\dev\BepInEx\plugins\ValheimModding-Jotunn</JOTUNN_INSTALL>
-  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)build\Valheim.Build.props" />
 
   <PropertyGroup>
     <!--
       MSB3277 fires on every build of ItemDrawers.Game, roughly forty lines of
       it, and none of it is actionable. Valheim ships its own copies of
       System.Net.Http and System.IO.Compression inside assembly_valheim and
-      assembly_utils, at versions differing from the netstandard2.1 reference
+      assembly_utils, at versions differing from the framework reference
       assemblies we compile against. MSBuild reports the conflict and then
-      resolves it correctly: the primary (netstandard) reference wins, which is
+      resolves it correctly: the primary (framework) reference wins, which is
       what we want, because at RUNTIME neither copy is ours. BepInEx loads this
       plugin into the game process and Unity supplies those assemblies. We ship
       no System.* DLLs, so there is nothing to bind-redirect and nothing to fix.

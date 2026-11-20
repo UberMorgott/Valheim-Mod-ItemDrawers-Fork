@@ -57,6 +57,16 @@ trusting this table, which ages:
 | Jotunn | 2.30.1 |
 | Plugin target framework | `netstandard2.1` |
 | Test target framework | `net8.0`, xunit |
+
+Exception: `ItemDrawers/` is on the shared Valheim toolchain (`valbuild`):
+`ItemDrawers/global.json` (SDK 10.0.403), `ItemDrawers/build/Valheim.Build.props`,
+plugin + Core `net472` (Core also `net10.0` for tests), tests `net10.0` on
+xunit.v3 / Microsoft Testing Platform, game folder via `ValheimDir`, LF
+pinned by `ItemDrawers/.gitattributes`, byte-reproducible builds. Run from
+`ItemDrawers/`: `dotnet build -c Release`,
+`dotnet test --project tests/ItemDrawers.Core.Tests -c Release`,
+`valbuild check .`. Never hand-edit `build/Valheim.Build.props` or
+`global.json` there; see its `README.md` "Building".
 | Mod manager | r2modman (`r2modmanPlus-local`) |
 
 Both plugins declare

@@ -61,22 +61,17 @@ two modifiers.
 
 ## Building
 
-Two MSBuild properties point the build at machine-specific paths — neither
-is committed with a real value:
-
-- `VALHEIM_INSTALL` — your Valheim install folder (contains `valheim.exe` and
-  `valheim_Data\Managed\`). Game and Unity assemblies are referenced from
-  here via `HintPath`, never as NuGet packages, and never committed.
-- `JOTUNN_INSTALL` — the folder holding your installed `Jotunn.dll` (e.g. an
-  r2modman profile's `BepInEx\plugins\ValheimModding-Jotunn`). This is a
-  `HintPath` reference rather than a `PackageReference` because JotunnLib
-  on nuget.org ships `lib/net462` only, with no netstandard asset — a
-  netstandard2.1 project restores it with zero usable references and no
-  warning to explain why.
-
-Set both either as environment variables, or by copying
+The build uses the shared Valheim toolchain (`global.json` pins SDK 10.0.403,
+`build/Valheim.Build.props` sets net472 plugin defaults, determinism and the
+game references; managed by `valbuild sync`, checked by `valbuild check .`).
+Game, Unity, BepInEx and Jotunn (`BepInEx\plugins\Jotunn\Jotunn.dll`)
+assemblies are referenced from the game folder `ValheimDir` with
+`Private=false`, never as NuGet packages and never committed; Morgott.Core
+is pinned in `build/ref` (`refs.lock`). The default `ValheimDir` is
+`D:\Steam\steamapps\common\Valheim`; override it with an environment
+variable, `-p:ValheimDir=...`, or by copying
 `Directory.Build.local.props.sample` to `Directory.Build.local.props`
-(gitignored) in the `ItemDrawers/` folder and editing the paths there. Then:
+(gitignored) in the `ItemDrawers/` folder. Then:
 
 ```bash
 cd ItemDrawers

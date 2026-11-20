@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <!-- net472 ships in the plugin; net10.0 is what the test project runs on (a net472-only
+         Core makes the net10.0 tests warn NU1702 and run a framework build on .NET). -->
+    <TargetFrameworks>net472;net10.0</TargetFrameworks>
     <RootNamespace>ItemDrawers.Core</RootNamespace>
-    <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
   </PropertyGroup>
 </Project>

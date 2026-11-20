@@ -1,11 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net472</TargetFramework>
     <AssemblyName>ItemDrawers</AssemblyName>
     <RootNamespace>ItemDrawers.Game</RootNamespace>
-    <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <Version>1.0.0</Version>
+    <!-- build/Valheim.Build.props: the game's own BepInEx/0Harmony, Jotunn from the game's
+         plugins folder, the publicizer, and Morgott.Core pinned in build/ref (refs.lock). -->
+    <ValheimPlugin>true</ValheimPlugin>
+    <ValheimUseJotunn>true</ValheimUseJotunn>
+    <ValheimUsePublicizer>true</ValheimUsePublicizer>
+    <ValheimUseCore>true</ValheimUseCore>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,78 +18,27 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
-    <PackageReference Include="BepInEx.Core" Version="5.*" PrivateAssets="all" />
-    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.*" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.Analyzers" Version="1.0.8" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <!--
     UnityEngine.Modules is not used: Valheim 1.0 runs on Unity 6000.0.75f1, and the
     UnityEngine.Modules NuGet package (nuget.org) only goes up to 2021.3.33 — nowhere
-    close. Referencing the actual UnityEngine module DLLs shipped next to the game is
-    the robust option the brief allows for, and it is what we do here. These DLLs are
-    never committed (see .gitignore / no repo copy is made).
+    close. The actual UnityEngine module DLLs shipped next to the game are referenced
+    instead. Localization lives in assembly_guiutils, not assembly_valheim: an easy
+    assumption to get wrong since every other gameplay type is in assembly_valheim.
   -->
   <ItemGroup>
-    <!-- Morgott.Core's IDrawerStore (DrawerStore.cs), pinned with `valbuild ref add . <Morgott.Core.dll>`
-         (build/ref/refs.lock) so a fresh clone compiles against the same bytes. -->
-    <Reference Include="Morgott.Core">
-      <HintPath>$(MSBuildThisFileDirectory)..\..\build\ref\Morgott.Core.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Jotunn">
-      <HintPath>$(JOTUNN_INSTALL)\Jotunn.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="assembly_valheim">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\assembly_valheim.dll</HintPath>
-      <Publicize>true</Publicize>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="assembly_utils">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\assembly_utils.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Unity.TextMeshPro">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\Unity.TextMeshPro.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.AssetBundleModule">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.PhysicsModule">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <!--
-      Localization lives in assembly_guiutils, not assembly_valheim: an
-      easy assumption to get wrong since every other gameplay type is in
-      assembly_valheim.
-    -->
-    <Reference Include="assembly_guiutils">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\assembly_guiutils.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.UI.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <Reference Include="assembly_valheim" HintPath="$(ManagedDir)\assembly_valheim.dll" Private="false" Publicize="true" />
+    <Reference Include="assembly_utils" HintPath="$(ManagedDir)\assembly_utils.dll" Private="false" />
+    <Reference Include="Unity.TextMeshPro" HintPath="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(ManagedDir)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDir)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AssetBundleModule" HintPath="$(ManagedDir)\UnityEngine.AssetBundleModule.dll" Private="false" />
+    <Reference Include="UnityEngine.PhysicsModule" HintPath="$(ManagedDir)\UnityEngine.PhysicsModule.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(ManagedDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="assembly_guiutils" HintPath="$(ManagedDir)\assembly_guiutils.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(ManagedDir)\UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="$(ManagedDir)\UnityEngine.UI.dll" Private="false" />
   </ItemGroup>
 </Project>

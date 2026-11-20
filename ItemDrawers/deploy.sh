@@ -18,7 +18,7 @@ if [ "$(printf '%s' "$PROFILE" | tr '[:upper:]' '[:lower:]')" = "default" ]; the
     exit 1
 fi
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUT="$HERE/src/ItemDrawers.Game/bin/Release/netstandard2.1"
+OUT="$HERE/src/ItemDrawers.Game/bin/Release/net472"
 DEST="$HOME/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/$PROFILE/BepInEx/plugins/ItemDrawers"
 
 DOTNET="dotnet"
