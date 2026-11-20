@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.3
+
+- Built against the game's own BepInEx and Harmony; the same source builds the
+  same DLL on every machine. No gameplay change.
+
 ## 1.4.2
 
 - Drawer icons that overflow the icon atlas at full size (large icon
