@@ -1,3 +1,6 @@
 {
-  "baseline": "750b6d7fda2bf694a39c334535f7da29bb738a67"
+  "baseline": "750b6d7fda2bf694a39c334535f7da29bb738a67",
+  "checks": [
+    { "name": "valbuild", "run": "valbuild check ItemDrawers", "level": "fast", "timeoutSec": 60 }
+  ]
 }
