@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.5
+
+- Drawers refuse items spawned with cheats instead of storing them as clean
+  items (hotbar, store-all, drag and drop, auto-pickup).
+
 ## 1.4.4
 
 - The drawers translate their own texts (names, hover hints, messages);
