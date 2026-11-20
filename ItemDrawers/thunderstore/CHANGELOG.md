@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.2
+
+- Drawer icons that overflow the icon atlas at full size (large icon
+  packs) are packed smaller instead of failing; every drawer shows its icon.
+- Needs Morgott.Core 0.26.0 or newer (the drawers' integration point for
+  Morgott's mods).
+
 ## 1.4.1
 
 - Drawer icons build again on the CPU copy path when many icons only fit

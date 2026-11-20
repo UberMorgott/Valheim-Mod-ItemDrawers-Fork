@@ -150,7 +150,9 @@ namespace ItemDrawers.Game
                 return;
             }
 
-            _layout = IconAtlasPacker.Pack(sizes);
+            _layout = IconAtlasPacker.PackFitting(sizes, out float scale);
+            if (scale < 1f)
+                DrawerPlugin.Log.LogInfo($"{sizes.Count} drawer icons overflow the atlas at native size; packed at x{scale}.");
 
             _texture = new Texture2D(_layout.Width, _layout.Height, TextureFormat.RGBA32, mipChain: true)
             {
@@ -376,9 +378,13 @@ namespace ItemDrawers.Game
                     int x = Mathf.RoundToInt(texRect.x);
                     int y = Mathf.RoundToInt(texRect.y);
                     var dest = icon.Value;
-                    if (x < 0 || y < 0 || x + dest.Width > sheet.width || y + dest.Height > sheet.height) continue;
+                    int w = Mathf.RoundToInt(texRect.width), h = Mathf.RoundToInt(texRect.height);
+                    if (x < 0 || y < 0 || x + w > sheet.width || y + h > sheet.height) continue;
 
-                    Graphics.CopyTexture(rt, 0, 0, x, y, dest.Width, dest.Height, atlas, 0, 0, dest.X, dest.Y);
+                    if (w == dest.Width && h == dest.Height)
+                        Graphics.CopyTexture(rt, 0, 0, x, y, dest.Width, dest.Height, atlas, 0, 0, dest.X, dest.Y);
+                    else
+                        CopyScaled(sheet, texRect, dest, atlas);
                 }
             }
             catch (System.Exception e)
@@ -388,6 +394,33 @@ namespace ItemDrawers.Game
             finally
             {
                 RenderTexture.ReleaseTemporary(rt);
+            }
+        }
+
+        /// <summary>
+        /// An icon PackFitting scaled down: a bilinear blit of its sheet region
+        /// into a temporary of the packed size, then the same CopyTexture.
+        /// CopyTexture alone would crop the source to the destination size.
+        /// </summary>
+        private static void CopyScaled(Texture sheet, Rect texRect, AtlasRect dest, RenderTexture atlas)
+        {
+            var tmp = RenderTexture.GetTemporary(dest.Width, dest.Height, 0,
+                RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+            try
+            {
+                tmp.filterMode = FilterMode.Bilinear;
+                Graphics.Blit(sheet, tmp, new Vector2(texRect.width / sheet.width, texRect.height / sheet.height),
+                    new Vector2(texRect.x / sheet.width, texRect.y / sheet.height));
+                Graphics.CopyTexture(tmp, 0, 0, 0, 0, dest.Width, dest.Height, atlas, 0, 0, dest.X, dest.Y);
+            }
+            catch (System.Exception e)
+            {
+                // One icon lost, not the rest of its sheet.
+                DrawerPlugin.Log.LogWarning($"Could not copy a scaled icon from '{sheet.name}' into the atlas: {e.Message}");
+            }
+            finally
+            {
+                RenderTexture.ReleaseTemporary(tmp);
             }
         }
 

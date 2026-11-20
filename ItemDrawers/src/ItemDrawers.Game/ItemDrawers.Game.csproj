@@ -26,6 +26,12 @@
     never committed (see .gitignore / no repo copy is made).
   -->
   <ItemGroup>
+    <!-- Morgott.Core's IDrawerStore (DrawerStore.cs), pinned with `valbuild ref add . <Morgott.Core.dll>`
+         (build/ref/refs.lock) so a fresh clone compiles against the same bytes. -->
+    <Reference Include="Morgott.Core">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\build\ref\Morgott.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Jotunn">
       <HintPath>$(JOTUNN_INSTALL)\Jotunn.dll</HintPath>
       <Private>false</Private>

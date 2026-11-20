@@ -23,9 +23,15 @@ namespace ItemDrawers.Game
         public readonly string ItemName;
         public readonly int Requested;
         public readonly Vector3 PlayerPosition;
+        // Optional reply of an IDrawerStore.RequestWithdraw caller (DrawerStore).
+        public readonly Action<long, string, int> Granted;
+        public readonly Action<long> GivenUp;
 
-        public PendingWithdrawal(ZDOID drawerId, long targetOwner, Player player, string itemName, int requested, Vector3 playerPosition)
+        public PendingWithdrawal(ZDOID drawerId, long targetOwner, Player player, string itemName, int requested, Vector3 playerPosition,
+            Action<long, string, int> granted = null, Action<long> givenUp = null)
         {
+            Granted = granted;
+            GivenUp = givenUp;
             DrawerId = drawerId;
             TargetOwner = targetOwner;
             Player = player;
@@ -132,6 +138,7 @@ namespace ItemDrawers.Game
         internal void AddPendingDeposit(long id, PendingDeposit payload) => _pendingDeposits.Add(id, payload, Time.time);
 
         internal bool TryCompleteWithdrawal(long id, out PendingWithdrawal payload) => _pendingWithdrawals.TryComplete(id, out payload);
+        internal int PendingWithdrawalCount => _pendingWithdrawals.Count;
         internal bool TryCompleteDeposit(long id, out PendingDeposit payload) => _pendingDeposits.TryComplete(id, out payload);
 
         /// <summary>
@@ -329,6 +336,7 @@ namespace ItemDrawers.Game
                 _pendingWithdrawals.Tick(Time.time, RetryWithdrawal, GiveUpWithdrawal);
             if (_pendingDeposits.Count > 0)
                 _pendingDeposits.Tick(Time.time, RetryDeposit, GiveUpDeposit);
+            DrawerStore.FlushLater();
 
             _cullTimer -= Time.deltaTime;
             if (_cullTimer <= 0f)
@@ -356,7 +364,7 @@ namespace ItemDrawers.Game
         /// mask or collider-radius guessing -- and it is already the list
         /// Valheim itself maintains, so this adds no bookkeeping of its own.
         /// </summary>
-        private void RunAutoPickup()
+        internal void RunAutoPickup()
         {
             var player = Player.m_localPlayer;
             if (player == null || _all.Count == 0) return;
@@ -408,6 +416,19 @@ namespace ItemDrawers.Game
                     break;
                 }
                 if (target == null) continue;
+
+                // IDrawerStore.PickupGate (Morgott.Patcher fly-in): may redirect the
+                // drop to another drawer or hold it this pass, before ownership is asked.
+                var gate = DrawerStore.Gate;
+                if (gate != null)
+                {
+                    var chosen = gate(drop, target) as DrawerComponent;
+                    if (chosen == null) continue;
+                    // Only another candidate of this pass (near, same item, room); else the target stands.
+                    if (chosen != target && _pickupScratch.Contains(chosen) && chosen.Snapshot.ItemName == itemName
+                        && chosen.Snapshot.Amount < chosen.Capacity)
+                        target = chosen;
+                }
 
                 // A drop must be OWNED by this client before its stack can be
                 // changed, and this is where multiplayer pickup was failing.
@@ -526,6 +547,7 @@ namespace ItemDrawers.Game
             DrawerDiagnostics.RequestClosed(id);
 
             payload.Player?.Message(MessageHud.MessageType.Center, DrawerComponent.CommitFailedMessage);
+            if (payload.GivenUp != null) DrawerStore.ReplyLater(() => payload.GivenUp(id));
         }
 
         /// <summary>

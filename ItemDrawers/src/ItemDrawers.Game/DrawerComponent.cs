@@ -970,7 +970,7 @@ namespace ItemDrawers.Game
         /// locally instantiated, which a still-outstanding request must
         /// not depend on.
         /// </summary>
-        private void RequestWithdraw(Player player, string itemName, int requested)
+        internal void RequestWithdraw(Player player, string itemName, int requested)
         {
             if (_view == null || !_view.IsValid() || requested <= 0) return;
 
@@ -1052,11 +1052,26 @@ namespace ItemDrawers.Game
                 return;
             }
 
+            SendForeignWithdraw(manager, targetOwner, player, itemName, requested);
+        }
+
+        /// <summary>
+        /// The request-to-owner tail of RequestWithdraw, shared with
+        /// DrawerStore.RequestWithdraw (Morgott's IDrawerStore): one pending
+        /// record pinned to <paramref name="targetOwner"/>, then the send.
+        /// A failed send is left to the ledger's pinned retry, so the id
+        /// returned is always the one its reply or give-up will carry.
+        /// </summary>
+        internal long SendForeignWithdraw(DrawerManager manager, long targetOwner, Player player, string itemName, int requested,
+            Action<long, string, int> granted = null, Action<long> givenUp = null)
+        {
             long id = manager.NextRequestId();
             manager.AddPendingWithdrawal(id, new PendingWithdrawal(
                 drawerId: _zdoId, targetOwner: targetOwner, player: player, itemName: itemName,
-                requested: requested, playerPosition: player.transform.position));
-            SendWithdrawRequestRpc(id, targetOwner, itemName, requested);
+                requested: requested, playerPosition: player.transform.position, granted: granted, givenUp: givenUp));
+            try { SendWithdrawRequestRpc(id, targetOwner, itemName, requested); }
+            catch (Exception e) { DrawerPlugin.Log.LogWarning($"Withdraw request {id} not sent, the ledger resends it: {e.Message}"); }
+            return id;
         }
 
         /// <summary>
@@ -1222,12 +1237,22 @@ namespace ItemDrawers.Game
                 DrawerPlugin.Log.LogWarning(
                     $"RPC_GrantWithdraw: request {id} asked for {pending.Requested} but was granted {granted}; clamped to {clamped}.");
 
-            if (clamped <= 0) return;
+            // The requester's reply and the grant notice follow the hand-over,
+            // also when it threw: an accepted grant always closes its request.
+            try
+            {
+                if (clamped <= 0) return;
 
-            if (pending.Player != null)
-                ItemFacts.GiveToPlayer(pending.Player, itemName, clamped);
-            else
-                ItemFacts.SpillAtPosition(pending.PlayerPosition, itemName, clamped);
+                if (pending.Player != null)
+                    ItemFacts.GiveToPlayer(pending.Player, itemName, clamped);
+                else
+                    ItemFacts.SpillAtPosition(pending.PlayerPosition, itemName, clamped);
+            }
+            finally
+            {
+                DrawerStore.Reply(() => pending.Granted?.Invoke(id, itemName, clamped));
+                if (clamped > 0) DrawerStore.Granted(this, itemName, clamped);
+            }
         }
 
         /// <summary>
@@ -1247,7 +1272,7 @@ namespace ItemDrawers.Game
         /// UseItem never did and still doesn't) -- shown against the REAL
         /// accepted amount, once it is known, never the requested one.
         /// </summary>
-        private void RequestDeposit(Player player, string itemName, int removed, bool announce)
+        internal void RequestDeposit(Player player, string itemName, int removed, bool announce)
         {
             if (removed <= 0) return;
 
@@ -1792,7 +1817,7 @@ namespace ItemDrawers.Game
         }
 
         /// <summary>Seconds since this peer first observed the ZDO's current OwnerRevision.</summary>
-        private float OwnerRevisionAge()
+        internal float OwnerRevisionAge()
         {
             ushort revision = _view.GetZDO().OwnerRevision;
             if (revision != _ownerRevisionSeen)

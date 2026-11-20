@@ -42,6 +42,21 @@ namespace ItemDrawers.Core.Tests
         }
 
         [Fact]
+        public void PackFitting_picks_the_largest_scale_that_fits()
+        {
+            var native = IconAtlasPacker.PackFitting(Uniform(500), out float one);
+            Assert.Equal(1f, one);
+            Assert.All(native.Rects.Values, r => Assert.Equal(64, r.Width));
+
+            var layout = IconAtlasPacker.PackFitting(Uniform(1325, 128), out float scale);
+            Assert.Equal(0.75f, scale);
+            Assert.Equal(1325, layout.Rects.Count);
+            Assert.All(layout.Rects.Values, r => Assert.Equal(96, r.Height));
+
+            Assert.Throws<InvalidOperationException>(() => IconAtlasPacker.PackFitting(Uniform(1325, 128), out _, 256));
+        }
+
+        [Fact]
         public void No_two_icons_overlap()
         {
             var layout = IconAtlasPacker.Pack(Uniform(500));

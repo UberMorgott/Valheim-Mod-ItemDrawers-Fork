@@ -12,6 +12,7 @@ namespace ItemDrawers.Game
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
+    [BepInDependency(Morgott.Core.Contracts.CoreGuid, "0.26.0")] // IDrawerStore
     // Drawer state, the RPC protocol and the container view's ZDO format
     // only work when every peer runs the same rules; a 0.9.x peer would
     // ignore view changes and a 1.0 peer reconciling against it loses them.
@@ -20,7 +21,7 @@ namespace ItemDrawers.Game
     {
         public const string PluginGuid = "com.rossdwest.itemdrawers";
         public const string PluginName = "ItemDrawers";
-        public const string PluginVersion = "1.4.1";
+        public const string PluginVersion = "1.4.2";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;
@@ -30,6 +31,7 @@ namespace ItemDrawers.Game
         private void Awake()
         {
             Log = Logger;
+            Morgott.Core.Services.Register<Morgott.Core.IDrawerStore>(DrawerStore.Instance = new DrawerStore());
             _harmony = new Harmony(PluginGuid);
 
             // Before any patching, so that if a Valheim update has moved
@@ -149,6 +151,7 @@ namespace ItemDrawers.Game
         private void OnDestroy()
         {
             _hotReload?.Dispose();
+            if (DrawerStore.Instance != null) Morgott.Core.Services.Unregister<Morgott.Core.IDrawerStore>(DrawerStore.Instance);
             _harmony?.UnpatchSelf();
         }
 

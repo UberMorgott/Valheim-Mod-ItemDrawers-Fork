@@ -68,6 +68,44 @@ namespace ItemDrawers.Core
                 $"Cannot fit {icons.Count} icons into a {maxDimension}×{maxDimension} atlas.");
         }
 
+        /// <summary>Scales tried, in order, once the native-size pack overflows.</summary>
+        public static readonly float[] FitScales = { 0.875f, 0.75f, 0.625f, 0.5f, 0.375f, 0.25f };
+
+        /// <summary>
+        /// <see cref="Pack"/>, and when the icons overflow maxDimension at
+        /// native size (a resource pack with 128 px icons needs ~1050 slots
+        /// of 130 px in a 4096 atlas that holds ~960), every icon scaled by
+        /// the largest of <see cref="FitScales"/> that fits, at least 1 px.
+        /// A drawer showing a smaller icon beats every drawer showing none.
+        /// <paramref name="scale"/> is 1 at native size; the rects carry the
+        /// scaled sizes, so the copy must resample to them. Still throws
+        /// when even the smallest scale overflows.
+        /// </summary>
+        public static AtlasLayout PackFitting(IReadOnlyList<IconSize> icons, out float scale, int maxDimension = 4096)
+        {
+            scale = 1f;
+            try
+            {
+                return Pack(icons, maxDimension);
+            }
+            catch (InvalidOperationException)
+            {
+                foreach (var s in FitScales)
+                {
+                    var scaled = icons.Select(i => new IconSize(i.Name,
+                        Math.Max(1, (int)Math.Round(i.Width * s)), Math.Max(1, (int)Math.Round(i.Height * s)))).ToList();
+                    try
+                    {
+                        var layout = Pack(scaled, maxDimension);
+                        scale = s;
+                        return layout;
+                    }
+                    catch (InvalidOperationException) { }
+                }
+                throw;
+            }
+        }
+
         private static bool TryPackInto(List<IconSize> sorted, int size,
                                         out Dictionary<string, AtlasRect> rects)
         {
