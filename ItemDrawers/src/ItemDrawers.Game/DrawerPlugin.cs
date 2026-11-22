@@ -12,7 +12,7 @@ namespace ItemDrawers.Game
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
-    [BepInDependency(Morgott.Core.Contracts.CoreGuid, "0.26.0")] // IDrawerStore
+    [BepInDependency(Morgott.Core.Contracts.CoreGuid, "0.30.0")] // IDrawerStore (0.26.0), IDrawerDeposit (0.30.0)
     // Drawer state, the RPC protocol and the container view's ZDO format
     // only work when every peer runs the same rules; a 0.9.x peer would
     // ignore view changes and a 1.0 peer reconciling against it loses them.
@@ -21,7 +21,7 @@ namespace ItemDrawers.Game
     {
         public const string PluginGuid = "com.rossdwest.itemdrawers";
         public const string PluginName = "ItemDrawers";
-        public const string PluginVersion = "1.4.5";
+        public const string PluginVersion = "1.4.6";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;

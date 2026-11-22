@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.6
+
+- Morgott.Core 0.30.0 IDrawerDeposit: automation (station queues) deposits into a drawer on the
+  drawer's own owner write (TryDepositExternally). Needs Morgott.Core 0.30.0.
+
 ## 1.4.5
 
 - Drawers refuse items spawned with cheats instead of storing them as clean

@@ -12,8 +12,11 @@ namespace ItemDrawers.Game
     /// onto the drawer's own path, so the RPC protocol, its pinning and its
     /// clamps stay exactly what a player's own use runs.
     /// </summary>
-    internal sealed class DrawerStore : IDrawerStore
+    internal sealed class DrawerStore : IDrawerStore, IDrawerDeposit
     {
+        public bool TryDeposit(Container drawer, string item, int amount, out int accepted) =>
+            Drawer(drawer).TryDepositExternally(item, amount, out accepted);
+
         internal static DrawerStore Instance;
 
         internal static Func<ItemDrop, Container, Container> Gate => Instance?.PickupGate;
