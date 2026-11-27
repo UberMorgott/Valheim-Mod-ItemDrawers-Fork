@@ -119,7 +119,7 @@ namespace RossQoL.Game.Items
 
             if (changed > 0)
                 RossQoLPlugin.Log.LogInfo(
-                    $"StackableMeadBases: {changed} brewing bases now stack to {(active ? size : 1)}.");
+                    $"StackableMeadBases: {changed.ToString()} brewing bases now stack to {(active ? size : 1).ToString()}.");
         }
 
         /// <summary>

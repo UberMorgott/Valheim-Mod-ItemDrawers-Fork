@@ -618,6 +618,18 @@ namespace ItemDrawers.Game
         /// back to the KeyCode name, which is exactly what the config file
         /// holds, so an unusual binding shows the same word in both places.
         /// </summary>
+        private static readonly Dictionary<KeyCode, string> KeyCodeNames = BuildKeyCodeNames();
+
+        private static Dictionary<KeyCode, string> BuildKeyCodeNames()
+        {
+            var values = (KeyCode[])Enum.GetValues(typeof(KeyCode));
+            var names = Enum.GetNames(typeof(KeyCode));
+            var map = new Dictionary<KeyCode, string>(values.Length);
+            for (int i = 0; i < values.Length && i < names.Length; i++)
+                map[values[i]] = names[i];
+            return map;
+        }
+
         private static string KeyLabel(BepInEx.Configuration.ConfigEntry<KeyCode> entry)
         {
             if (entry == null || entry.Value == KeyCode.None) return null;
@@ -630,7 +642,7 @@ namespace ItemDrawers.Game
                 case KeyCode.RightShift: return "Shift";
                 case KeyCode.LeftAlt:
                 case KeyCode.RightAlt: return "Alt";
-                default: return entry.Value.ToString();
+                default: return KeyCodeNames.TryGetValue(entry.Value, out var name) ? name : ((int)entry.Value).ToString();
             }
         }
 
@@ -1077,7 +1089,7 @@ namespace ItemDrawers.Game
                 drawerId: _zdoId, targetOwner: targetOwner, player: player, itemName: itemName,
                 requested: requested, playerPosition: player.transform.position, granted: granted, givenUp: givenUp));
             try { SendWithdrawRequestRpc(id, targetOwner, itemName, requested); }
-            catch (Exception e) { DrawerPlugin.Log.LogWarning($"Withdraw request {id} not sent, the ledger resends it: {e.Message}"); }
+            catch (Exception e) { DrawerPlugin.Log.LogWarning($"Withdraw request {id.ToString()} not sent, the ledger resends it: {e.Message}"); }
             return id;
         }
 
@@ -1138,12 +1150,51 @@ namespace ItemDrawers.Game
         /// issues later. See the class-level comment on the RPC protocol
         /// for why a retry must never target a freshly-resolved owner.
         /// </summary>
+        private void SendRpc(long targetPeerId, string methodName, long id, string itemName, int amount)
+        {
+            var rpc = ZRoutedRpc.instance;
+            if (rpc == null) return;
+            var data = new ZRoutedRpc.RoutedRPCData
+            {
+                m_msgID = rpc.m_id + rpc.m_rpcMsgID++,
+                m_senderPeerID = rpc.m_id,
+                m_targetPeerID = targetPeerId,
+                m_targetZDO = _view.GetZDO().m_uid,
+                m_methodHash = methodName.GetStableHashCode(),
+            };
+            data.m_parameters.Write(id);
+            data.m_parameters.Write(itemName ?? "");
+            data.m_parameters.Write(amount);
+            data.m_parameters.SetPos(0);
+            if (targetPeerId == rpc.m_id || targetPeerId == 0L) rpc.HandleRoutedRPC(data);
+            if (targetPeerId != rpc.m_id) rpc.RouteRPC(data);
+        }
+
+        private void SendRpc(long targetPeerId, string methodName, long id, int amount)
+        {
+            var rpc = ZRoutedRpc.instance;
+            if (rpc == null) return;
+            var data = new ZRoutedRpc.RoutedRPCData
+            {
+                m_msgID = rpc.m_id + rpc.m_rpcMsgID++,
+                m_senderPeerID = rpc.m_id,
+                m_targetPeerID = targetPeerId,
+                m_targetZDO = _view.GetZDO().m_uid,
+                m_methodHash = methodName.GetStableHashCode(),
+            };
+            data.m_parameters.Write(id);
+            data.m_parameters.Write(amount);
+            data.m_parameters.SetPos(0);
+            if (targetPeerId == rpc.m_id || targetPeerId == 0L) rpc.HandleRoutedRPC(data);
+            if (targetPeerId != rpc.m_id) rpc.RouteRPC(data);
+        }
+
         internal void SendWithdrawRequestRpc(long id, long targetOwner, string itemName, int requested)
         {
             if (_view != null && _view.IsValid())
             {
                 DrawerDiagnostics.RequestSent(id, Time.time);
-                _view.InvokeRPC(targetOwner, RpcReqWithdraw, id, itemName, requested);
+                SendRpc(targetOwner, RpcReqWithdraw, id, itemName, requested);
             }
         }
 
@@ -1182,7 +1233,7 @@ namespace ItemDrawers.Game
             _handledWithdrawals.Prune(Time.time);
             if (_handledWithdrawals.TryGet(sender, id, out var cached))
             {
-                _view.InvokeRPC(sender, RpcGrantWithdraw, id, cached.ItemName, cached.Amount);
+                SendRpc(sender, RpcGrantWithdraw, id, cached.ItemName, cached.Amount);
                 return;
             }
 
@@ -1201,7 +1252,7 @@ namespace ItemDrawers.Game
             }
 
             _handledWithdrawals.Record(sender, id, (current.ItemName, granted), Time.time);
-            _view.InvokeRPC(sender, RpcGrantWithdraw, id, current.ItemName, granted);
+            SendRpc(sender, RpcGrantWithdraw, id, current.ItemName, granted);
         }
 
         /// <summary>
@@ -1237,12 +1288,12 @@ namespace ItemDrawers.Game
 
             if (sender != pending.TargetOwner)
                 DrawerPlugin.Log.LogWarning(
-                    $"RPC_GrantWithdraw: reply for request {id} came from peer {sender}, not the pinned target {pending.TargetOwner}.");
+                    $"RPC_GrantWithdraw: reply for request {id.ToString()} came from peer {sender.ToString()}, not the pinned target {pending.TargetOwner.ToString()}.");
 
             int clamped = granted < 0 ? 0 : Math.Min(granted, pending.Requested);
             if (granted != clamped)
                 DrawerPlugin.Log.LogWarning(
-                    $"RPC_GrantWithdraw: request {id} asked for {pending.Requested} but was granted {granted}; clamped to {clamped}.");
+                    $"RPC_GrantWithdraw: request {id.ToString()} asked for {pending.Requested.ToString()} but was granted {granted.ToString()}; clamped to {clamped.ToString()}.");
 
             // The requester's reply and the grant notice follow the hand-over,
             // also when it threw: an accepted grant always closes its request.
@@ -1257,7 +1308,7 @@ namespace ItemDrawers.Game
             }
             finally
             {
-                DrawerStore.Reply(() => pending.Granted?.Invoke(id, itemName, clamped));
+                DrawerStore.Reply(pending.Granted, id, itemName, clamped);
                 if (clamped > 0) DrawerStore.Granted(this, itemName, clamped);
             }
         }
@@ -1355,7 +1406,7 @@ namespace ItemDrawers.Game
             if (_view != null && _view.IsValid())
             {
                 DrawerDiagnostics.DepositSent(id, Time.time);
-                _view.InvokeRPC(targetOwner, RpcReqDeposit, id, itemName, removed);
+                SendRpc(targetOwner, RpcReqDeposit, id, itemName, removed);
             }
         }
 
@@ -1371,7 +1422,7 @@ namespace ItemDrawers.Game
             _handledDeposits.Prune(Time.time);
             if (_handledDeposits.TryGet(sender, id, out var cachedAccepted))
             {
-                _view.InvokeRPC(sender, RpcGrantDeposit, id, cachedAccepted);
+                SendRpc(sender, RpcGrantDeposit, id, cachedAccepted);
                 return;
             }
 
@@ -1386,7 +1437,7 @@ namespace ItemDrawers.Game
             int accepted = (outcome.Accepted && WriteOwned(current, outcome.Result)) ? outcome.MovedToDrawer : 0;
 
             _handledDeposits.Record(sender, id, accepted, Time.time);
-            _view.InvokeRPC(sender, RpcGrantDeposit, id, accepted);
+            SendRpc(sender, RpcGrantDeposit, id, accepted);
         }
 
         /// <summary>
@@ -1406,12 +1457,12 @@ namespace ItemDrawers.Game
 
             if (sender != pending.TargetOwner)
                 DrawerPlugin.Log.LogWarning(
-                    $"RPC_GrantDeposit: reply for request {id} came from peer {sender}, not the pinned target {pending.TargetOwner}.");
+                    $"RPC_GrantDeposit: reply for request {id.ToString()} came from peer {sender.ToString()}, not the pinned target {pending.TargetOwner.ToString()}.");
 
             int clamped = accepted < 0 ? 0 : Math.Min(accepted, pending.Removed);
             if (accepted != clamped)
                 DrawerPlugin.Log.LogWarning(
-                    $"RPC_GrantDeposit: request {id} offered {pending.Removed} but {accepted} was reported accepted; clamped to {clamped}.");
+                    $"RPC_GrantDeposit: request {id.ToString()} offered {pending.Removed.ToString()} but {accepted.ToString()} was reported accepted; clamped to {clamped.ToString()}.");
 
             int shortfall = DrawerState.RefundShortfall(pending.Removed, clamped);
             if (shortfall > 0)
@@ -1427,7 +1478,7 @@ namespace ItemDrawers.Game
         private static void AnnounceDeposit(Player player, string itemName, int accepted)
         {
             if (accepted <= 0) return;
-            player.Message(MessageHud.MessageType.TopLeft, $"$itemdrawers_stored {accepted} {ItemFacts.LocalizedName(itemName)}");
+            player.Message(MessageHud.MessageType.TopLeft, $"$itemdrawers_stored {accepted.ToString()} {ItemFacts.LocalizedName(itemName)}");
         }
 
         /// <summary>
@@ -1685,7 +1736,7 @@ namespace ItemDrawers.Game
         /// </summary>
         internal string DiagId =>
             _view != null && _view.IsValid()
-                ? $"{gameObject.name}#{_view.GetZDO().m_uid}"
+                ? $"{gameObject.name}#{_view.GetZDO().m_uid.ToString()}"
                 : $"{gameObject.name}#(no ZDO)";
 
         internal Inventory GetViewInventory() => View?.GetForCaller();
@@ -2107,12 +2158,12 @@ namespace ItemDrawers.Game
                     ItemFacts.SpillAtPosition(spillAt, f.Key, f.Value);
                 else
                     DrawerPlugin.Log.LogWarning(
-                        $"{DiagId}: {f.Value} of unidentifiable item '{f.Key}' left in the drawer's view could not be returned.");
+                        $"{DiagId}: {f.Value.ToString()} of unidentifiable item '{f.Key}' left in the drawer's view could not be returned.");
             }
 
             if (outcome.Unbacked > 0)
                 DrawerPlugin.Log.LogWarning(
-                    $"{DiagId}: {outcome.Unbacked} {current.ItemName} were taken through the view beyond what the drawer held "
+                    $"{DiagId}: {outcome.Unbacked.ToString()} {current.ItemName} were taken through the view beyond what the drawer held "
                     + "(another player changed it at the same moment).");
         }
 
@@ -2194,7 +2245,7 @@ namespace ItemDrawers.Game
             string actions = string.Join("\n", lines);
 
             return Localization.instance.Localize(
-                $"{label}  <color=orange>{s.Amount}</color>/{Capacity}\n" + actions);
+                $"{label}  <color=orange>{s.Amount.ToString()}</color>/{Capacity.ToString()}\n" + actions);
         }
 
         public new string GetHoverName() => DrawerTiers.DisplayName(Tier);

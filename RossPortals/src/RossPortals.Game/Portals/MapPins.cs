@@ -53,8 +53,13 @@ namespace RossPortals.Game.Portals
                 _pins[key] = Minimap.instance.AddPin(portal.Location, PinType, name, save: false, isChecked: false);
             }
 
-            foreach (var key in _pins.Keys.Where(k => !seen.Contains(k)).ToList())
+            var stale = new List<string>();
+            foreach (var key in _pins.Keys)
+                if (!seen.Contains(key)) stale.Add(key);
+
+            for (int i = 0; i < stale.Count; i++)
             {
+                var key = stale[i];
                 Minimap.instance.RemovePin(_pins[key]);
                 _pins.Remove(key);
             }

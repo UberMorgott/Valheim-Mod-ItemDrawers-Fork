@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using RossQoL.Core.Startup;
+using RossQoL.Game.Framework;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -23,9 +24,14 @@ namespace RossQoL.Game.Startup
         public static PlayerProfile FindProfile(List<PlayerProfile> profiles, LastSession session)
         {
             if (profiles == null || session == null) return null;
-            return profiles.Find(p =>
-                p.GetFilename() == session.CharacterFile
-                && p.m_fileSource.ToString() == session.CharacterSource);
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                var p = profiles[i];
+                if (p.GetFilename() == session.CharacterFile
+                    && EnumText.Name(p.m_fileSource) == session.CharacterSource)
+                    return p;
+            }
+            return null;
         }
 
         /// <summary>
@@ -35,10 +41,16 @@ namespace RossQoL.Game.Startup
         public static World FindWorld(LastSession session)
         {
             if (session == null) return null;
-            return SaveSystem.GetWorldList().Find(w =>
-                w.m_name == session.WorldName
-                && w.m_fileSource.ToString() == session.WorldSource
-                && w.m_dataError == World.SaveDataError.None);
+            var worlds = SaveSystem.GetWorldList();
+            for (int i = 0; i < worlds.Count; i++)
+            {
+                var w = worlds[i];
+                if (w.m_name == session.WorldName
+                    && EnumText.Name(w.m_fileSource) == session.WorldSource
+                    && w.m_dataError == World.SaveDataError.None)
+                    return w;
+            }
+            return null;
         }
 
         public static void Resume(FejdStartup menu, LastSession session, Button button)
@@ -140,20 +152,40 @@ namespace RossQoL.Game.Startup
 
                     // Codes are regenerated when a host restarts, so the code is
                     // tried first and the stored id is the fallback.
+                    var handler = new PlayFabJoinHandler(menu, session, byId);
                     ZPlayFabMatchmaking.ResolveJoinCode(
                         session.JoinCode,
-                        data => Join(menu, new ServerJoinData(new ServerJoinDataPlayFabUser(data.remotePlayerId)), session),
-                        reason =>
-                        {
-                            RossQoLPlugin.Log.LogInfo(
-                                $"Continue: join code {session.JoinCode} no longer resolves ({reason}); trying the server's id.");
-                            Join(menu, byId, session);
-                        });
+                        handler.OnResolved,
+                        handler.OnFailed);
                     return;
 
                 default:
-                    FallBack(menu, $"unknown server kind {session.ServerKind}");
+                    FallBack(menu, $"unknown server kind {EnumText.Name(session.ServerKind)}");
                     return;
+            }
+        }
+
+        private sealed class PlayFabJoinHandler
+        {
+            private readonly FejdStartup _menu;
+            private readonly LastSession _session;
+            private readonly ServerJoinData _byId;
+
+            public PlayFabJoinHandler(FejdStartup menu, LastSession session, ServerJoinData byId)
+            {
+                _menu = menu;
+                _session = session;
+                _byId = byId;
+            }
+
+            public void OnResolved(PlayFabMatchmakingServerData data) =>
+                Join(_menu, new ServerJoinData(new ServerJoinDataPlayFabUser(data.remotePlayerId)), _session);
+
+            public void OnFailed(ZPLayFabMatchmakingFailReason reason)
+            {
+                RossQoLPlugin.Log.LogInfo(
+                    $"Continue: join code {_session.JoinCode} no longer resolves ({EnumText.Name(reason)}); trying the server's id.");
+                Join(_menu, _byId, _session);
             }
         }
 

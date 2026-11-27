@@ -19,7 +19,7 @@ namespace RossQoL.Core.Crafting
             if (needle.Length == 0) return true;
             if (displayName == null) return false;
 
-            return Normalize(displayName).IndexOf(needle, StringComparison.Ordinal) >= 0;
+            return Normalize(displayName).Contains(needle, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -32,9 +32,12 @@ namespace RossQoL.Core.Crafting
             if (categoryWords == null) return false;
 
             string needle = Normalize(term);
-            foreach (string word in categoryWords)
+            var list = categoryWords as System.Collections.Generic.IReadOnlyList<string>
+                ?? new System.Collections.Generic.List<string>(categoryWords);
+            for (int i = 0; i < list.Count; i++)
             {
-                if (word != null && Normalize(word).IndexOf(needle, StringComparison.Ordinal) >= 0) return true;
+                string word = list[i];
+                if (word != null && Normalize(word).Contains(needle, StringComparison.Ordinal)) return true;
             }
             return false;
         }

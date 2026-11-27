@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using RossQoL.Core.Interface;
+using RossQoL.Core.UserInterface;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;

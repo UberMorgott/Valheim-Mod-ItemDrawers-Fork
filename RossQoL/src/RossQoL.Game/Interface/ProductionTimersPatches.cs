@@ -1,6 +1,6 @@
 using System;
 using HarmonyLib;
-using RossQoL.Core.Interface;
+using RossQoL.Core.UserInterface;
 using UnityEngine;
 using ValheimCompat = RossQoL.Game.Framework.ValheimCompat;
 

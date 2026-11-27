@@ -1,6 +1,6 @@
 using System;
 using HarmonyLib;
-using RossQoL.Core.Interface;
+using RossQoL.Core.UserInterface;
 using RossQoL.Game.Framework;
 using TMPro;
 using UnityEngine;

@@ -53,8 +53,8 @@ namespace RossQoL.Game.Production
                 if (taken <= 0) continue;
 
                 // As vanilla's AddItem: the prefab name's hash is the content.
-                fermenter.m_nview.InvokeRPC(
-                    "RPC_AddItem", conversion.m_from.gameObject.name.GetStableHashCode(), cheated);
+                RpcSend.ToOwner(
+                    fermenter.m_nview, "RPC_AddItem", conversion.m_from.gameObject.name.GetStableHashCode(), cheated);
                 return;
             }
         }

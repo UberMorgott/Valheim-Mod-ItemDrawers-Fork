@@ -78,7 +78,7 @@ namespace ItemDrawers.Game
             if (missing.Count == 0)
             {
                 DrawerPlugin.Log.LogInfo(
-                    $"Valheim compatibility check passed ({Required.Length} members).");
+                    $"Valheim compatibility check passed ({Required.Length.ToString()} members).");
                 return;
             }
 

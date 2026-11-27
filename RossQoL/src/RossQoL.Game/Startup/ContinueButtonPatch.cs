@@ -88,7 +88,7 @@ namespace RossQoL.Game.Startup
                 // A fresh event drops Start game's scene-wired OnStartGame listener.
                 var button = clone.GetComponent<Button>();
                 button.onClick = new Button.ButtonClickedEvent();
-                button.onClick.AddListener(() => ContinueLauncher.Resume(menu, session, button));
+                button.onClick.AddListener(new ContinueClickHandler(menu, session, button).Invoke);
 
                 // Awake cached the button list; without refreshing it, keyboard and
                 // gamepad selection skip the new button.
@@ -105,6 +105,22 @@ namespace RossQoL.Game.Startup
                 Object.Destroy(clone);
                 throw;
             }
+        }
+
+        private sealed class ContinueClickHandler
+        {
+            private readonly FejdStartup _menu;
+            private readonly LastSession _session;
+            private readonly Button _button;
+
+            public ContinueClickHandler(FejdStartup menu, LastSession session, Button button)
+            {
+                _menu = menu;
+                _session = session;
+                _button = button;
+            }
+
+            public void Invoke() => ContinueLauncher.Resume(_menu, _session, _button);
         }
 
         private static Button FindStartGameButton(Button[] buttons)

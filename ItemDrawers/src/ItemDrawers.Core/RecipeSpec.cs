@@ -86,7 +86,11 @@ namespace ItemDrawers.Core
         public static string Format(IReadOnlyList<(string Item, int Amount)> requirements)
         {
             var parts = new List<string>(requirements.Count);
-            foreach (var r in requirements) parts.Add($"{r.Item}:{r.Amount}");
+            for (int i = 0; i < requirements.Count; i++)
+            {
+                var r = requirements[i];
+                parts.Add($"{r.Item}:{r.Amount.ToString()}");
+            }
             return string.Join(",", parts);
         }
 

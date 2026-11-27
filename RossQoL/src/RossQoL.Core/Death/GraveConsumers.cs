@@ -55,9 +55,13 @@ namespace RossQoL.Core.Death
         {
             if (keys == null) return false;
 
-            foreach (string key in keys)
+            var list = keys as IReadOnlyList<string> ?? new List<string>(keys);
+            for (int i = 0; i < list.Count; i++)
+            {
+                string key = list[i];
                 if (key != null && wants(key))
                     return true;
+            }
 
             return false;
         }

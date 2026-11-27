@@ -115,8 +115,11 @@ namespace ItemDrawers.Game
         private Dictionary<ConfigDefinition, string> Snapshot()
         {
             var values = new Dictionary<ConfigDefinition, string>();
-            foreach (var pair in _config)
+            var pairs = new KeyValuePair<ConfigDefinition, ConfigEntryBase>[_config.Count];
+            ((ICollection<KeyValuePair<ConfigDefinition, ConfigEntryBase>>)_config).CopyTo(pairs, 0);
+            for (int i = 0; i < pairs.Length; i++)
             {
+                var pair = pairs[i];
                 try
                 {
                     values[pair.Key] = pair.Value.GetSerializedValue();

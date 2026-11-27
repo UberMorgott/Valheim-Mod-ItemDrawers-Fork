@@ -9,6 +9,17 @@ namespace ItemDrawers.Game
         public static readonly DrawerTier[] All =
             { DrawerTier.Wood, DrawerTier.Stone, DrawerTier.BlackMarble };
 
+        internal static string Name(DrawerTier tier)
+        {
+            switch (tier)
+            {
+                case DrawerTier.Wood: return "Wood";
+                case DrawerTier.Stone: return "Stone";
+                case DrawerTier.BlackMarble: return "BlackMarble";
+                default: return ((int)tier).ToString();
+            }
+        }
+
         /// <summary>
         /// Written into save files, therefore permanent. Renaming one of
         /// these after release orphans every drawer players have built.

@@ -47,7 +47,7 @@ namespace RossPortals.Game.Portals
         {
             var portals = ZDOMan.instance.GetPortalList();
             PortalRegistry.Instance.ApplyPortalZdos(portals);
-            RossPortalsPlugin.Log.LogInfo($"Portal sync ({reason}): server sees {portals.Count} portal(s); broadcasting.");
+            RossPortalsPlugin.Log.LogInfo($"Portal sync ({reason}): server sees {portals.Count.ToString()} portal(s); broadcasting.");
             PortalRpc.BroadcastResync(PortalRegistry.Instance.Pack(), reason);
             NotifyListChanged();
         }
@@ -100,6 +100,20 @@ namespace RossPortals.Game.Portals
             NotifyListChanged();
         }
 
+        private sealed class WriteRetry
+        {
+            private readonly PortalRecord _record;
+            private readonly int _attempts;
+
+            public WriteRetry(PortalRecord record, int attempts)
+            {
+                _record = record;
+                _attempts = attempts;
+            }
+
+            public void Run() => WriteWithRetry(_record, _attempts);
+        }
+
         // A just-placed portal's ZDO can reach the server a frame or two after
         // the add request; retry a few times before giving up rather than
         // dropping the write.
@@ -112,10 +126,10 @@ namespace RossPortals.Game.Portals
             }
             if (attempts <= 0 || Scheduler.Instance == null)
             {
-                RossPortalsPlugin.Log.LogWarning($"Portal ZDO {record.Id} never materialised; name/target not persisted.");
+                RossPortalsPlugin.Log.LogWarning($"Portal ZDO {record.Id.ToString()} never materialised; name/target not persisted.");
                 return;
             }
-            Scheduler.Instance.AfterFrames(3, () => WriteWithRetry(record, attempts - 1));
+            Scheduler.Instance.AfterFrames(3, new WriteRetry(record, attempts - 1).Run);
         }
 
         // --- Placement / destruction (client side, from patches) ---

@@ -29,6 +29,15 @@ namespace ItemDrawers.Game
         private static readonly Dictionary<DrawerTier, ConfigEntry<string>> Recipes =
             new Dictionary<DrawerTier, ConfigEntry<string>>();
 
+        private sealed class RecipeSettingHandler
+        {
+            private readonly DrawerTier _tier;
+            public RecipeSettingHandler(DrawerTier tier) => _tier = tier;
+            public void OnChanged(object sender, System.EventArgs e) => DrawerPieces.ApplyRecipe(_tier);
+        }
+
+        private static bool IsKnownPrefab(string item) => PrefabManager.Instance.GetPrefab(item) != null;
+
         public static void Bind(ConfigFile config)
         {
             WoodCapacity = config.Bind("Capacity", "Wood", 1000,
@@ -62,7 +71,7 @@ namespace ItemDrawers.Game
             // it.
             foreach (var tier in DrawerTiers.All)
             {
-                var entry = config.Bind("Recipe", tier.ToString(),
+                var entry = config.Bind("Recipe", DrawerTiers.Name(tier),
                     RecipeSpec.Format(DrawerTiers.Recipe(tier)),
                     new ConfigDescription(
                         "Build cost, as Item:Count separated by commas -- e.g. FineWood:5,Stone:10. "
@@ -70,8 +79,7 @@ namespace ItemDrawers.Game
                         + "shown in game. An unparseable or unknown-item recipe is logged and the "
                         + "default is used instead. On a server, the server's value applies to everyone.",
                         null, new ConfigurationManagerAttributes { IsAdminOnly = true }));
-                var t = tier;
-                entry.SettingChanged += (_, __) => DrawerPieces.ApplyRecipe(t);
+                entry.SettingChanged += new RecipeSettingHandler(tier).OnChanged;
                 Recipes[tier] = entry;
             }
 
@@ -169,7 +177,7 @@ namespace ItemDrawers.Game
             var (requirements, problem) = RecipeChoice.Choose(entry.Value, fallback, KnownItemCheck());
             if (problem != null)
                 DrawerPlugin.Log.LogWarning(
-                    $"Recipe.{tier} is not usable ({problem}); using the default "
+                    $"Recipe.{DrawerTiers.Name(tier)} is not usable ({problem}); using the default "
                     + $"{RecipeSpec.Format(fallback)} instead.");
             return requirements;
         }
@@ -207,12 +215,8 @@ namespace ItemDrawers.Game
         /// Before Jotunn is ready there is no answer, and inventing a failure
         /// is exactly the bug described above, so the recipe goes through.
         /// </summary>
-        private static System.Func<string, bool> KnownItemCheck()
-        {
-            var prefabs = PrefabManager.Instance;
-            if (prefabs == null) return null;
-            return item => prefabs.GetPrefab(item) != null;
-        }
+        private static System.Func<string, bool> KnownItemCheck() =>
+            PrefabManager.Instance == null ? null : (System.Func<string, bool>)IsKnownPrefab;
 
         public static int CapacityFor(DrawerTier tier)
         {

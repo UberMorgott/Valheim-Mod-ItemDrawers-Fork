@@ -285,7 +285,10 @@ namespace ItemDrawers.Core.Tests
             var corruptMesh = new MeshData(truncatedVertices, truncatedNormals, truncatedUvs);
 
             // Expect the watertightness check to reject this mesh.
-            var ex = Assert.Throws<Xunit.Sdk.TrueException>(() => AssertMeshIsManifold(corruptMesh));
+            Xunit.Sdk.TrueException ex = null;
+            try { AssertMeshIsManifold(corruptMesh); }
+            catch (Xunit.Sdk.TrueException caught) { ex = caught; }
+            Assert.NotNull(ex);
 
             // Verify the exception message mentions the edge or its count to ensure the helper
             // is actually checking edges and not silently succeeding for the wrong reason.

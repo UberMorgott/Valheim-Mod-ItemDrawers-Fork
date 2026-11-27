@@ -340,9 +340,9 @@ namespace RossQoL.Game.Crafting
                     // than the one it covers. The shortfall is reported and
                     // left alone.
                     RossQoLPlugin.Log.LogError(
-                        $"CraftFromChests: {CraftScope.Describe()} cost {owed} {name} (quality {tier}) but only "
-                        + $"{paidFromPack + taken} were paid -- {paidFromPack} from your pack, {taken} from "
-                        + $"{__state.Boxes.Count} nearby container(s). {shortfall} went unpaid; that craft was "
+                        $"CraftFromChests: {CraftScope.Describe()} cost {owed.ToString()} {name} (quality {tier.ToString()}) but only "
+                        + $"{(paidFromPack + taken).ToString()} were paid -- {paidFromPack.ToString()} from your pack, {taken.ToString()} from "
+                        + $"{__state.Boxes.Count.ToString()} nearby container(s). {shortfall.ToString()} went unpaid; that craft was "
                         + "cheaper than it should have been.");
                 }
             }

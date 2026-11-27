@@ -34,10 +34,14 @@ namespace RossQoL.Core.Death
         /// <summary>Graves for a single world, in newest-first order.</summary>
         public static IReadOnlyList<GraveRecord> ForWorld(string stored, long worldId)
         {
+            var parsed = Parse(stored);
             var records = new List<GraveRecord>();
-            foreach (var record in Parse(stored))
+            for (int i = 0; i < parsed.Count; i++)
+            {
+                var record = parsed[i];
                 if (record.WorldId == worldId)
                     records.Add(record);
+            }
 
             return records;
         }
@@ -70,10 +74,14 @@ namespace RossQoL.Core.Death
         /// </summary>
         public static string Remove(string stored, long worldId, uint zdoId)
         {
+            var parsed = Parse(stored);
             var kept = new List<GraveRecord>();
-            foreach (var record in Parse(stored))
+            for (int i = 0; i < parsed.Count; i++)
+            {
+                var record = parsed[i];
                 if (record.WorldId != worldId || record.ZdoId != zdoId)
                     kept.Add(record);
+            }
 
             return Format(kept);
         }
@@ -81,7 +89,7 @@ namespace RossQoL.Core.Death
         private static string Format(IReadOnlyList<GraveRecord> records)
         {
             var lines = new List<string>(records.Count);
-            foreach (var record in records) lines.Add(record.Format());
+            for (int i = 0; i < records.Count; i++) lines.Add(records[i].Format());
 
             return string.Join(LineSeparator.ToString(), lines);
         }

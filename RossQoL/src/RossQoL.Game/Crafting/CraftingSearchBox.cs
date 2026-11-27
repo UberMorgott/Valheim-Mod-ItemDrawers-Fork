@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using GUIFramework;
 using RossQoL.Core.Crafting;
+using RossQoL.Game.Framework;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -109,10 +110,10 @@ namespace RossQoL.Game.Crafting
                 string name = Localization.instance.Localize(shared.m_name);
 
                 s_words.Clear();
-                string itemType = shared.m_itemType.ToString();
+                string itemType = EnumText.Name(shared.m_itemType);
                 s_words.AddRange(RecipeCategories.WordsFor(itemType));
                 if (RecipeCategories.HasSkillWord(itemType) && shared.m_skillType != Skills.SkillType.None)
-                    s_words.Add(Localization.instance.Localize("$skill_" + shared.m_skillType.ToString().ToLower()));
+                    s_words.Add(Localization.instance.Localize("$skill_" + EnumText.Name(shared.m_skillType).ToLowerInvariant()));
 
                 if (RecipeSearch.Matches(name, s_words, term)) s_filtered.Add(recipe);
             }
@@ -193,12 +194,12 @@ namespace RossQoL.Game.Crafting
 
                 var field = clone.GetComponent<GuiInputField>();
                 field.onValueChanged = new TMP_InputField.OnChangeEvent();
-                field.onValueChanged.AddListener(_ => OnTextChanged(gui));
+                field.onValueChanged.AddListener(new SearchChangeHandler(gui).OnChanged);
                 field.navigation = new Navigation { mode = Navigation.Mode.None };
                 field.SetTextWithoutNotify(string.Empty);
 
                 RossQoLPlugin.Log.LogInfo(
-                    $"RecipeSearch: search box added above '{frame.name}' (height {height:0}); "
+                    $"RecipeSearch: search box added above '{frame.name}' (height {height.ToString("0")}); "
                     + $"scrollbar {(bar && bar.parent == frame.parent ? "shortened" : "left alone")}.");
                 return field;
             }
@@ -207,6 +208,13 @@ namespace RossQoL.Game.Crafting
                 Object.Destroy(clone);
                 throw;
             }
+        }
+
+        private sealed class SearchChangeHandler
+        {
+            private readonly InventoryGui _gui;
+            public SearchChangeHandler(InventoryGui gui) => _gui = gui;
+            public void OnChanged(string _) => OnTextChanged(_gui);
         }
 
         private static void ShortenTop(RectTransform rect, float by) =>

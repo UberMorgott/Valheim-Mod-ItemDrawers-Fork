@@ -34,7 +34,22 @@ namespace RossPortals.Game.Portals
             => ZRoutedRpc.instance.InvokeRoutedRPC(Env.ServerPeerId, ModInfo.RpcAddOrUpdate, record.Pack());
 
         public static void RequestRemove(ZDOID id)
-            => ZRoutedRpc.instance.InvokeRoutedRPC(Env.ServerPeerId, ModInfo.RpcRemove, id);
+        {
+            var rpc = ZRoutedRpc.instance;
+            var targetPeerId = Env.ServerPeerId;
+            var data = new ZRoutedRpc.RoutedRPCData
+            {
+                m_msgID = rpc.m_id + rpc.m_rpcMsgID++,
+                m_senderPeerID = rpc.m_id,
+                m_targetPeerID = targetPeerId,
+                m_targetZDO = ZDOID.None,
+                m_methodHash = ModInfo.RpcRemove.GetStableHashCode(),
+            };
+            data.m_parameters.Write(id);
+            data.m_parameters.SetPos(0);
+            if (targetPeerId == rpc.m_id || targetPeerId == 0L) rpc.HandleRoutedRPC(data);
+            if (targetPeerId != rpc.m_id) rpc.RouteRPC(data);
+        }
 
         public static void BroadcastPortal(PortalRecord record)
         {
@@ -79,7 +94,7 @@ namespace RossPortals.Game.Portals
         {
             if (Env.IsServer) return;
             PortalRegistry.Instance.ApplyResync(pkg);
-            RossPortalsPlugin.Log.LogInfo($"Portal resync ({reason}): now know {PortalRegistry.Instance.Count} portal(s).");
+            RossPortalsPlugin.Log.LogInfo($"Portal resync ({reason}): now know {PortalRegistry.Instance.Count.ToString()} portal(s).");
             PortalManager.NotifyListChanged();
         }
     }

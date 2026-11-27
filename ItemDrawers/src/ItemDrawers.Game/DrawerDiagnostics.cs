@@ -99,7 +99,7 @@ namespace ItemDrawers.Game
             {
                 _slowGrantsLogged++;
                 DrawerPlugin.Log.LogInfo(
-                    $"Deposit waited {ms:F0}ms for the owner to answer."
+                    $"Deposit waited {ms.ToString("F0")}ms for the owner to answer."
                     + (_slowGrantsLogged == SlowGrantLogLimit
                         ? " Further slow grants will not be logged; use rid_diag for totals."
                         : ""));
@@ -144,7 +144,7 @@ namespace ItemDrawers.Game
             {
                 _slowGrantsLogged++;
                 DrawerPlugin.Log.LogInfo(
-                    $"Withdraw waited {ms:F0}ms for the owner to answer."
+                    $"Withdraw waited {ms.ToString("F0")}ms for the owner to answer."
                     + (_slowGrantsLogged == SlowGrantLogLimit
                         ? " Further slow grants will not be logged; use rid_diag for totals."
                         : ""));
@@ -186,11 +186,11 @@ namespace ItemDrawers.Game
 
             string who = previousOwner == 0L ? "nobody"
                 : previousOwner == thisPeer ? "this client"
-                : $"peer {previousOwner}";
+                : $"peer {previousOwner.ToString()}";
 
             DrawerPlugin.Log.LogInfo(
-                $"Withdraw refused ({RefusedUnsettled} so far): ownership came from {who} "
-                + $"{ownerRevisionAge:F2}s ago."
+                $"Withdraw refused ({RefusedUnsettled.ToString()} so far): ownership came from {who} "
+                + $"{ownerRevisionAge.ToString("F2")}s ago."
                 + (_refusalsLogged == RefusalLogLimit ? " Further refusals will not be logged; use rid_diag for totals." : ""));
         }
 

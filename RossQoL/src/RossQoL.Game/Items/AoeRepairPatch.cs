@@ -48,7 +48,7 @@ namespace RossQoL.Game.Items
                 }
 
                 if (repaired > 0)
-                    __instance.Message(MessageHud.MessageType.TopLeft, $"Repaired {repaired} more piece(s) nearby");
+                    __instance.Message(MessageHud.MessageType.TopLeft, $"Repaired {repaired.ToString()} more piece(s) nearby");
             }
             catch (Exception ex)
             {

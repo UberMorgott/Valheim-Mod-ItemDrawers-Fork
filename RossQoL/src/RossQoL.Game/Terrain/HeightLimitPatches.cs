@@ -42,7 +42,7 @@ namespace RossQoL.Game.Terrain
 
             if (hits.Count != expected.Length)
                 throw new InvalidOperationException(
-                    $"{where}: expected {expected.Length} height limit constant(s), found {hits.Count}. "
+                    $"{where}: expected {expected.Length.ToString()} height limit constant(s), found {hits.Count.ToString()}. "
                     + "The game or another mod has changed this method; its terrain limit is left as it is.");
 
             for (int k = 0; k < hits.Count; k++)
@@ -50,7 +50,7 @@ namespace RossQoL.Game.Terrain
                 var instruction = code[hits[k]];
                 if (Math.Abs((float)instruction.operand - expected[k].Value) > 0.0001f)
                     throw new InvalidOperationException(
-                        $"{where}: height limit constant {k + 1} is {instruction.operand}, expected {expected[k].Value}. "
+                        $"{where}: height limit constant {(k + 1).ToString()} is {instruction.operand}, expected {expected[k].Value.ToString()}. "
                         + "Its terrain limit is left as it is.");
 
                 // Mutated in place so any labels and exception blocks stay attached.

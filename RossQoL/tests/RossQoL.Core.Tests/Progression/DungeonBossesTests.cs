@@ -7,11 +7,8 @@ namespace RossQoL.Core.Tests.Progression
 {
     public class DungeonBossesTests
     {
-        private static Func<string, bool> Killed(params string[] keys)
-        {
-            var set = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
-            return key => set.Contains(key);
-        }
+        private static Func<string, bool> Killed(params string[] keys) =>
+            new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase).Contains;
 
         [Fact]
         public void Each_biome_answers_to_its_own_boss()
@@ -61,8 +58,9 @@ namespace RossQoL.Core.Tests.Progression
                 TeleportUnlocks.Elder, TeleportUnlocks.Bonemass,
                 TeleportUnlocks.Moder, DungeonBosses.Queen);
 
-            foreach (string biome in DungeonBosses.KnownBiomes)
-                Assert.True(DungeonBosses.IsCleared(biome, all), biome + " should be unlocked");
+            var biomes = new List<string>(DungeonBosses.KnownBiomes);
+            for (int i = 0; i < biomes.Count; i++)
+                Assert.True(DungeonBosses.IsCleared(biomes[i], all), biomes[i] + " should be unlocked");
         }
 
         [Fact]

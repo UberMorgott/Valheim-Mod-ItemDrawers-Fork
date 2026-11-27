@@ -71,7 +71,7 @@ namespace RossQoL.Game.Combat
                 case KeyCode.RightAlt:
                     return "Alt";
                 default:
-                    return code.ToString();
+                    return EnumText.Name(code);
             }
         }
     }

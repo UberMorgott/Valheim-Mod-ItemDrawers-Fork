@@ -35,24 +35,29 @@ namespace ItemDrawers.Core
         /// <exception cref="InvalidOperationException">If icons cannot fit into a maxDimension×maxDimension atlas.</exception>
         public static AtlasLayout Pack(IReadOnlyList<IconSize> icons, int maxDimension = 4096)
         {
+#if NET8_0_OR_GREATER
+            ArgumentNullException.ThrowIfNull(icons);
+#else
             if (icons == null) throw new ArgumentNullException(nameof(icons));
+#endif
             if (icons.Count == 0)
                 return new AtlasLayout(1, 1, new Dictionary<string, AtlasRect>());
 
             // Validate all icons before attempting to pack
             int maxIconSize = maxDimension - Padding;
-            foreach (var icon in icons)
+            for (int idx = 0; idx < icons.Count; idx++)
             {
+                var icon = icons[idx];
                 if (icon.Width <= 0 || icon.Height <= 0)
                     throw new ArgumentException(
-                        $"Icon '{icon.Name}' has invalid dimensions {icon.Width}×{icon.Height}. " +
+                        $"Icon '{icon.Name}' has invalid dimensions {icon.Width.ToString()}×{icon.Height.ToString()}. " +
                         "Icon width and height must be positive.");
 
                 if (icon.Width > maxIconSize || icon.Height > maxIconSize)
                     throw new ArgumentException(
-                        $"Icon '{icon.Name}' has dimensions {icon.Width}×{icon.Height}, " +
-                        $"but maximum icon size for maxDimension={maxDimension} is {maxIconSize}×{maxIconSize} " +
-                        $"(atlas dimension - {Padding} pixel padding).");
+                        $"Icon '{icon.Name}' has dimensions {icon.Width.ToString()}×{icon.Height.ToString()}, " +
+                        $"but maximum icon size for maxDimension={maxDimension.ToString()} is {maxIconSize.ToString()}×{maxIconSize.ToString()} " +
+                        $"(atlas dimension - {Padding.ToString()} pixel padding).");
             }
 
             // Use stable sort (OrderByDescending is documented as stable)
@@ -65,7 +70,7 @@ namespace ItemDrawers.Core
             }
 
             throw new InvalidOperationException(
-                $"Cannot fit {icons.Count} icons into a {maxDimension}×{maxDimension} atlas.");
+                $"Cannot fit {icons.Count.ToString()} icons into a {maxDimension.ToString()}×{maxDimension.ToString()} atlas.");
         }
 
         /// <summary>Scales tried, in order, once the native-size pack overflows.</summary>
@@ -90,10 +95,17 @@ namespace ItemDrawers.Core
             }
             catch (InvalidOperationException)
             {
-                foreach (var s in FitScales)
+                for (int si = 0; si < FitScales.Length; si++)
                 {
-                    var scaled = icons.Select(i => new IconSize(i.Name,
-                        Math.Max(1, (int)Math.Round(i.Width * s)), Math.Max(1, (int)Math.Round(i.Height * s)))).ToList();
+                    float s = FitScales[si];
+                    var scaled = new List<IconSize>(icons.Count);
+                    for (int i = 0; i < icons.Count; i++)
+                    {
+                        var icon = icons[i];
+                        scaled.Add(new IconSize(icon.Name,
+                            Math.Max(1, (int)Math.Round(icon.Width * s)),
+                            Math.Max(1, (int)Math.Round(icon.Height * s))));
+                    }
                     try
                     {
                         var layout = Pack(scaled, maxDimension);

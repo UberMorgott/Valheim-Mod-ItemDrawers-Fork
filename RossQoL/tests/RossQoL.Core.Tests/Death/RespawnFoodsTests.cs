@@ -7,11 +7,8 @@ namespace RossQoL.Core.Tests.Death
 {
     public class RespawnFoodsTests
     {
-        private static Func<string, bool> Has(params string[] names)
-        {
-            var set = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
-            return name => name != null && set.Contains(name);
-        }
+        private static Func<string, bool> Has(params string[] names) =>
+            new HashSet<string>(names, StringComparer.OrdinalIgnoreCase).Contains;
 
         private const string Table = "Meadows:Honey|Raspberry,BlackForest:CarrotSoup|Honey,Swamp:TurnipStew|CarrotSoup";
 
@@ -71,8 +68,9 @@ namespace RossQoL.Core.Tests.Death
         [Fact]
         public void The_default_table_covers_every_tier()
         {
-            foreach (string tier in RossQoL.Core.Progression.WorldFrontier.Tiers)
-                Assert.NotNull(RespawnFoods.Pick(RespawnFoods.DefaultTable, tier, _ => true));
+            var tiers = RossQoL.Core.Progression.WorldFrontier.Tiers;
+            for (int i = 0; i < tiers.Count; i++)
+                Assert.NotNull(RespawnFoods.Pick(RespawnFoods.DefaultTable, tiers[i], _ => true));
         }
     }
 }

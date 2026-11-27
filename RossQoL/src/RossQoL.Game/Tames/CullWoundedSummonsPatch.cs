@@ -73,7 +73,7 @@ namespace RossQoL.Game.Tames
 
             if (hits.Count != 1)
                 throw new InvalidOperationException(
-                    $"Tameable.UnsummonMaxInstances: expected exactly 1 call to List<BaseAI>.Sort, found {hits.Count}. "
+                    $"Tameable.UnsummonMaxInstances: expected exactly 1 call to List<BaseAI>.Sort, found {hits.Count.ToString()}. "
                     + "The game or another mod has changed this method; the summon cap keeps vanilla's "
                     + "oldest-first order.");
 

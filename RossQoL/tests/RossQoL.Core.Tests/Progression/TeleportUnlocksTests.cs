@@ -7,11 +7,8 @@ namespace RossQoL.Core.Tests.Progression
 {
     public class TeleportUnlocksTests
     {
-        private static Func<string, bool> Killed(params string[] keys)
-        {
-            var set = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
-            return key => set.Contains(key);
-        }
+        private static Func<string, bool> Killed(params string[] keys) =>
+            new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase).Contains;
 
         [Fact]
         public void Copper_waits_for_the_elder()
@@ -52,8 +49,9 @@ namespace RossQoL.Core.Tests.Progression
                 TeleportUnlocks.Moder, TeleportUnlocks.Yagluth, TeleportUnlocks.Queen,
                 TeleportUnlocks.Fader);
 
-            foreach (string item in TeleportUnlocks.KnownItems)
-                Assert.True(TeleportUnlocks.IsUnlocked(item, all), item + " should be unlocked");
+            var items = new List<string>(TeleportUnlocks.KnownItems);
+            for (int i = 0; i < items.Count; i++)
+                Assert.True(TeleportUnlocks.IsUnlocked(items[i], all), items[i] + " should be unlocked");
         }
 
         [Fact]

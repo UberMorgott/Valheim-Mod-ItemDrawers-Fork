@@ -89,7 +89,7 @@ namespace RossQoL.Game.Production
                 // race costs one item rather than a chest's worth.
                 if (ContainerSource.Take(origin, conversion.m_from, 1, out bool cheated) <= 0) continue;
 
-                smelter.m_nview.InvokeRPC("RPC_AddOre", conversion.m_from.gameObject.name, cheated);
+                RpcSend.ToOwner(smelter.m_nview, "RPC_AddOre", conversion.m_from.gameObject.name, cheated);
                 return;
             }
         }

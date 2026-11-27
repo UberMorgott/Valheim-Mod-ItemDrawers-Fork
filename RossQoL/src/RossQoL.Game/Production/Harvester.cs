@@ -86,7 +86,7 @@ namespace RossQoL.Game.Production
                     }
                     catch (Exception ex)
                     {
-                        RossQoLPlugin.Log.LogError($"AutoHarvest: dropping {owed} x {conversion.m_to.name} at a fermenter failed: {ex}");
+                        RossQoLPlugin.Log.LogError($"AutoHarvest: dropping {owed.ToString()} x {conversion.m_to.name} at a fermenter failed: {ex}");
                     }
                 }
             }
@@ -124,7 +124,7 @@ namespace RossQoL.Game.Production
                     }
                     catch (Exception ex)
                     {
-                        RossQoLPlugin.Log.LogError($"AutoHarvest: dropping {owed} x {item.name} at a producer failed: {ex}");
+                        RossQoLPlugin.Log.LogError($"AutoHarvest: dropping {owed.ToString()} x {item.name} at a producer failed: {ex}");
                     }
                 }
             }

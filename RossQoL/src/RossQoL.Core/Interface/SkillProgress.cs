@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 
-namespace RossQoL.Core.Interface
+namespace RossQoL.Core.UserInterface
 {
     /// <summary>
     /// Turns Valheim's internal skill progress numbers into something a player

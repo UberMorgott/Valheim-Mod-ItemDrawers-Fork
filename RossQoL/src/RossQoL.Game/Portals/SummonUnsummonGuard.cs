@@ -80,8 +80,8 @@ namespace RossQoL.Game.Portals
         {
             if (ids == null) return;
 
-            foreach (var id in ids)
-                if (id != ZDOID.None) Guarded.Add(id);
+            for (int i = 0; i < ids.Count; i++)
+                if (ids[i] != ZDOID.None) Guarded.Add(ids[i]);
         }
 
         /// <summary>

@@ -41,16 +41,19 @@ namespace RossQoL.Game
                     FeatureScope.Client, requiresRestart: false));
 
             var categories = FeatureRegistry.Create();
-            foreach (var category in categories) category.Bind(Config);
+            for (int i = 0; i < categories.Count; i++) categories[i].Bind(Config);
 
             // One host object for the whole mod; features add components to it.
             var host = new GameObject(PluginName + "Manager");
             DontDestroyOnLoad(host);
             host.transform.SetParent(gameObject.transform);
 
-            foreach (var category in categories)
-                foreach (var feature in category.Features)
-                    FeatureActivator.Activate(feature, _harmony, host);
+            for (int i = 0; i < categories.Count; i++)
+            {
+                var features = categories[i].Features;
+                for (int j = 0; j < features.Count; j++)
+                    FeatureActivator.Activate(features[j], _harmony, host);
+            }
 
             // A failed watcher costs live reloading, never the plugin.
             try

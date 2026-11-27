@@ -1,7 +1,6 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using Xunit;
 
 namespace ItemDrawers.Core.Tests
@@ -17,11 +16,21 @@ namespace ItemDrawers.Core.Tests
         public void Core_references_no_game_or_engine_assemblies()
         {
             var core = typeof(DrawerProportions).Assembly;
-            var referenced = core.GetReferencedAssemblies().Select(a => a.Name).ToArray();
+            var referenced = core.GetReferencedAssemblies();
+            var violations = new List<string>();
 
-            var violations = referenced
-                .Where(name => Forbidden.Any(f => name.StartsWith(f, StringComparison.OrdinalIgnoreCase)))
-                .ToArray();
+            for (int i = 0; i < referenced.Length; i++)
+            {
+                string name = referenced[i].Name;
+                for (int j = 0; j < Forbidden.Length; j++)
+                {
+                    if (name.StartsWith(Forbidden[j], StringComparison.OrdinalIgnoreCase))
+                    {
+                        violations.Add(name);
+                        break;
+                    }
+                }
+            }
 
             Assert.Empty(violations);
         }
@@ -39,10 +48,13 @@ namespace ItemDrawers.Core.Tests
             Assert.True(File.Exists(csprojPath), $"Could not locate ItemDrawers.Core.csproj to inspect (looked at: {csprojPath}).");
 
             var text = File.ReadAllText(csprojPath);
+            var violations = new List<string>();
 
-            var violations = Forbidden
-                .Where(f => text.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0)
-                .ToArray();
+            for (int i = 0; i < Forbidden.Length; i++)
+            {
+                if (text.Contains(Forbidden[i], StringComparison.OrdinalIgnoreCase))
+                    violations.Add(Forbidden[i]);
+            }
 
             Assert.Empty(violations);
         }

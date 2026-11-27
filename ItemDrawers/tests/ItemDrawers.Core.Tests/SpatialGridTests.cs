@@ -62,23 +62,29 @@ namespace ItemDrawers.Core.Tests
             }
 
             var hits = new List<int>();
+            var expected = new List<int>();
             for (int q = 0; q < 100; q++)
             {
                 float qx = (float)(rng.NextDouble() * 400 - 200);
                 float qy = (float)(rng.NextDouble() * 60 - 30);
                 float qz = (float)(rng.NextDouble() * 400 - 200);
                 float r = (float)(rng.NextDouble() * 30 + 1);
+                float rSq = r * r;
 
                 hits.Clear();
                 grid.Query(qx, qy, qz, r, hits);
 
-                var expected = points
-                    .Where(p => (p.x - qx) * (p.x - qx) + (p.y - qy) * (p.y - qy) + (p.z - qz) * (p.z - qz) <= r * r)
-                    .Select(p => p.id)
-                    .OrderBy(i => i)
-                    .ToArray();
+                expected.Clear();
+                for (int i = 0; i < points.Count; i++)
+                {
+                    var p = points[i];
+                    float dx = p.x - qx, dy = p.y - qy, dz = p.z - qz;
+                    if (dx * dx + dy * dy + dz * dz <= rSq) expected.Add(p.id);
+                }
+                expected.Sort();
+                hits.Sort();
 
-                Assert.Equal(expected, hits.OrderBy(i => i).ToArray());
+                Assert.Equal(expected, hits);
             }
         }
 
@@ -199,23 +205,29 @@ namespace ItemDrawers.Core.Tests
 
             // Now run queries against the final state
             var hits = new List<int>();
+            var expected = new List<int>();
             for (int q = 0; q < 100; q++)
             {
                 float qx = (float)(rng.NextDouble() * 400 - 200);
                 float qy = (float)(rng.NextDouble() * 60 - 30);
                 float qz = (float)(rng.NextDouble() * 400 - 200);
                 float r = (float)(rng.NextDouble() * 30 + 1);
+                float rSq = r * r;
 
                 hits.Clear();
                 grid.Query(qx, qy, qz, r, hits);
 
-                var expected = points
-                    .Where(p => (p.x - qx) * (p.x - qx) + (p.y - qy) * (p.y - qy) + (p.z - qz) * (p.z - qz) <= r * r)
-                    .Select(p => p.id)
-                    .OrderBy(i => i)
-                    .ToArray();
+                expected.Clear();
+                for (int i = 0; i < points.Count; i++)
+                {
+                    var p = points[i];
+                    float dx = p.x - qx, dy = p.y - qy, dz = p.z - qz;
+                    if (dx * dx + dy * dy + dz * dz <= rSq) expected.Add(p.id);
+                }
+                expected.Sort();
+                hits.Sort();
 
-                Assert.Equal(expected, hits.OrderBy(i => i).ToArray());
+                Assert.Equal(expected, hits);
             }
         }
 

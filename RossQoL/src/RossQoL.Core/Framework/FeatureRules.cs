@@ -32,8 +32,9 @@ namespace RossQoL.Core.Framework
         {
             if (featureScopes == null) return FeatureScope.Client;
 
-            foreach (var scope in featureScopes)
-                if (scope == FeatureScope.Synced) return FeatureScope.Synced;
+            var list = featureScopes as IReadOnlyList<FeatureScope> ?? new List<FeatureScope>(featureScopes);
+            for (int i = 0; i < list.Count; i++)
+                if (list[i] == FeatureScope.Synced) return FeatureScope.Synced;
 
             return FeatureScope.Client;
         }

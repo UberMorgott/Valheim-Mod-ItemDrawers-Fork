@@ -7,8 +7,27 @@ namespace ItemDrawers.Core.Tests
 {
     public class IconAtlasPackerTests
     {
-        private static List<IconSize> Uniform(int count, int size = 64) =>
-            Enumerable.Range(0, count).Select(i => new IconSize("item" + i, size, size)).ToList();
+        private static List<IconSize> Uniform(int count, int size = 64)
+        {
+            var list = new List<IconSize>(count);
+            for (int i = 0; i < count; i++)
+                list.Add(new IconSize("item" + i, size, size));
+            return list;
+        }
+
+        private static ArgumentException AssertPackThrowsArgumentException(List<IconSize> icons, int maxDimension = 4096)
+        {
+            try
+            {
+                IconAtlasPacker.Pack(icons, maxDimension);
+            }
+            catch (ArgumentException ex)
+            {
+                return ex;
+            }
+            Assert.Fail("Expected ArgumentException.");
+            return null;
+        }
 
         private static bool Overlaps(AtlasRect a, AtlasRect b) =>
             a.X < b.X + b.Width && b.X < a.X + a.Width &&
@@ -33,7 +52,7 @@ namespace ItemDrawers.Core.Tests
             var layout = IconAtlasPacker.Pack(Uniform(1325, 96));
             Assert.Equal(4096, layout.Width);
             Assert.Equal(1325, layout.Rects.Count);
-            foreach (var r in layout.Rects.Values)
+            foreach (var r in layout.Rects.Values.ToArray())
             {
                 Assert.Equal(96, r.Width);
                 Assert.Equal(96, r.Height);
@@ -72,7 +91,7 @@ namespace ItemDrawers.Core.Tests
         {
             var layout = IconAtlasPacker.Pack(Uniform(500));
 
-            foreach (var r in layout.Rects.Values)
+            foreach (var r in layout.Rects.Values.ToArray())
             {
                 Assert.InRange(r.X, 0, layout.Width - r.Width);
                 Assert.InRange(r.Y, 0, layout.Height - r.Height);
@@ -223,12 +242,11 @@ namespace ItemDrawers.Core.Tests
                 new IconSize("toolarge", 1023, 64)
             };
 
-            var ex = Assert.Throws<ArgumentException>(() =>
-                IconAtlasPacker.Pack(icons, maxDimension: 1024));
+            var ex = AssertPackThrowsArgumentException(icons, maxDimension: 1024);
 
             Assert.Contains("toolarge", ex.Message);
             Assert.Contains("1023", ex.Message);
-            Assert.Contains("maximum", ex.Message.ToLower());
+            Assert.Contains("maximum", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -240,10 +258,9 @@ namespace ItemDrawers.Core.Tests
                 new IconSize("badicon", 0, 64)
             };
 
-            var ex1 = Assert.Throws<ArgumentException>(() =>
-                IconAtlasPacker.Pack(icons1));
+            var ex1 = AssertPackThrowsArgumentException(icons1);
             Assert.Contains("badicon", ex1.Message);
-            Assert.Contains("invalid", ex1.Message.ToLower());
+            Assert.Contains("invalid", ex1.Message, StringComparison.OrdinalIgnoreCase);
 
             // Zero height icon
             var icons2 = new List<IconSize>
@@ -251,10 +268,9 @@ namespace ItemDrawers.Core.Tests
                 new IconSize("badicon2", 64, 0)
             };
 
-            var ex2 = Assert.Throws<ArgumentException>(() =>
-                IconAtlasPacker.Pack(icons2));
+            var ex2 = AssertPackThrowsArgumentException(icons2);
             Assert.Contains("badicon2", ex2.Message);
-            Assert.Contains("invalid", ex2.Message.ToLower());
+            Assert.Contains("invalid", ex2.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -332,7 +348,8 @@ namespace ItemDrawers.Core.Tests
 
             // All rects should match exactly
             Assert.Equal(layout1.Rects.Count, layout2.Rects.Count);
-            foreach (var name in layout1.Rects.Keys)
+            var keys = layout1.Rects.Keys.ToArray();
+            foreach (var name in keys)
             {
                 var r1 = layout1.Rects[name];
                 var r2 = layout2.Rects[name];
@@ -343,7 +360,7 @@ namespace ItemDrawers.Core.Tests
             }
 
             // UV coordinates should match
-            foreach (var name in layout1.Rects.Keys)
+            foreach (var name in keys)
             {
                 layout1.TryGetUv(name, out float u0_1, out float v0_1, out float u1_1, out float v1_1);
                 layout2.TryGetUv(name, out float u0_2, out float v0_2, out float u1_2, out float v1_2);

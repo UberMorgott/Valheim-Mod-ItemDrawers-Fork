@@ -56,12 +56,12 @@ namespace RossPortals.Game.Framework
             var missing = FindMissing(Members);
             if (missing.Count == 0)
             {
-                RossPortalsPlugin.Log.LogInfo($"Valheim compatibility check: all {Members.Length} referenced members present.");
+                RossPortalsPlugin.Log.LogInfo($"Valheim compatibility check: all {Members.Length.ToString()} referenced members present.");
                 return;
             }
 
             RossPortalsPlugin.Log.LogError(
-                $"Valheim compatibility check: {missing.Count} of {Members.Length} referenced members are MISSING. "
+                $"Valheim compatibility check: {missing.Count.ToString()} of {Members.Length.ToString()} referenced members are MISSING. "
                 + "The affected features are disabled. This usually means a Valheim update moved something:");
             foreach (var line in missing) RossPortalsPlugin.Log.LogError($"  - {line}");
         }
@@ -71,8 +71,10 @@ namespace RossPortals.Game.Framework
             var missing = new List<string>();
             if (members == null) return missing;
 
-            foreach (var m in members)
+            var list = new List<CompatMember>(members);
+            for (int i = 0; i < list.Count; i++)
             {
+                var m = list[i];
                 var type = AccessTools.TypeByName(m.Type);
                 if (type == null)
                 {
@@ -130,8 +132,11 @@ namespace RossPortals.Game.Framework
         private static bool HasMethod(Type type, string name)
         {
             for (var t = type; t != null; t = t.BaseType)
-                if (t.GetMethods(AccessTools.all).Any(m => m.Name == name))
-                    return true;
+            {
+                var methods = t.GetMethods(AccessTools.all);
+                for (int i = 0; i < methods.Length; i++)
+                    if (methods[i].Name == name) return true;
+            }
 
             return false;
         }

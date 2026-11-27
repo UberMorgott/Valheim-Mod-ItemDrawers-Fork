@@ -110,7 +110,7 @@ namespace ItemDrawers.Game
                 }
                 catch (System.Exception ex)
                 {
-                    DrawerPlugin.Log.LogError($"{tier}: registration threw and was skipped: {ex}");
+                    DrawerPlugin.Log.LogError($"{DrawerTiers.Name(tier)}: registration threw and was skipped: {ex}");
                 }
             }
         }
@@ -289,7 +289,7 @@ namespace ItemDrawers.Game
                 if (item == null)
                 {
                     DrawerPlugin.Log.LogWarning(
-                        $"Recipe.{tier}: '{recipe[i].Item}' is not an item; keeping the current cost.");
+                        $"Recipe.{DrawerTiers.Name(tier)}: '{recipe[i].Item}' is not an item; keeping the current cost.");
                     return;
                 }
 
@@ -324,7 +324,7 @@ namespace ItemDrawers.Game
                 var go2 = PrefabManager.Instance.GetPrefab(candidate);
                 if (go2 == null)
                 {
-                    DrawerPlugin.Log.LogInfo($"{tier}: donor '{candidate}' not found, trying next.");
+                    DrawerPlugin.Log.LogInfo($"{DrawerTiers.Name(tier)}: donor '{candidate}' not found, trying next.");
                     continue;
                 }
 
@@ -333,7 +333,7 @@ namespace ItemDrawers.Game
                 if (r == null || r.sharedMaterial == null || p == null || p.m_icon == null)
                 {
                     DrawerPlugin.Log.LogInfo(
-                        $"{tier}: donor '{candidate}' unusable "
+                        $"{DrawerTiers.Name(tier)}: donor '{candidate}' unusable "
                         + $"(renderer={(r == null ? "none" : "ok")}, "
                         + $"material={(r == null || r.sharedMaterial == null ? "none" : "ok")}, "
                         + $"piece={(p == null ? "none" : "ok")}, "
@@ -348,7 +348,7 @@ namespace ItemDrawers.Game
             if (donor == null)
             {
                 DrawerPlugin.Log.LogError(
-                    $"No usable material donor for {tier}. Tried: "
+                    $"No usable material donor for {DrawerTiers.Name(tier)}. Tried: "
                     + string.Join(", ", DrawerTiers.MaterialDonors(tier))
                     + ". This tier will be missing from the build menu.");
                 return null;
@@ -449,7 +449,7 @@ namespace ItemDrawers.Game
             // unless this code turns it on.
             var tierMaterial = new Material(donorRenderer.sharedMaterial.shader)
             {
-                name = $"rid_drawer_{tier}_mat"
+                name = $"rid_drawer_{DrawerTiers.Name(tier)}_mat"
             };
 
             // _Color is a plain multiplicative tint that Custom/Piece (like
@@ -528,7 +528,7 @@ namespace ItemDrawers.Game
                 else
                 {
                     DrawerPlugin.Log.LogWarning(
-                        $"{tier}: shader has no _TriplanarLocalPos; triplanar mapping "
+                        $"{DrawerTiers.Name(tier)}: shader has no _TriplanarLocalPos; triplanar mapping "
                         + "will stay projected in world space, which makes each placed drawer's "
                         + "surfaces sample the normal map differently.");
                 }
@@ -543,7 +543,7 @@ namespace ItemDrawers.Game
                 // properties at all (see graphicsAvailable above); that is
                 // reported in the summary line, not warned about.
                 DrawerPlugin.Log.LogWarning(
-                    $"{tier}: shader has no _TriplanarScale; leaving UV mapping in place.");
+                    $"{DrawerTiers.Name(tier)}: shader has no _TriplanarScale; leaving UV mapping in place.");
             }
 
             // Our own generated, seamless textures -- the only art this
@@ -574,7 +574,7 @@ namespace ItemDrawers.Game
             // _NORMALMAP and _TRIPLANARMAP_ON, never _VALUENOISEVERTEX_ON
             // or _PARALLAXMAP.
             DrawerPlugin.Log.LogInfo(
-                $"{tier}: donor='{donorName}', shader='{donorRenderer.sharedMaterial.shader.name}', "
+                $"{DrawerTiers.Name(tier)}: donor='{donorName}', shader='{donorRenderer.sharedMaterial.shader.name}', "
                 + $"triplanar={(triplanarEnabled ? "on" : "off")}, "
                 + $"triplanarLocalPos={(triplanarLocalPos ? "on" : "off")}, textures={textureStatus}, "
                 + $"keywords=[{string.Join(",", tierMaterial.shaderKeywords)}]");
@@ -830,7 +830,7 @@ namespace ItemDrawers.Game
             else
             {
                 DrawerPlugin.Log.LogWarning(
-                    $"{tier}: donor '{donor.name}' has no place effect; this drawer will build and repair silently.");
+                    $"{DrawerTiers.Name(tier)}: donor '{donor.name}' has no place effect; this drawer will build and repair silently.");
             }
 
             var wear = go.AddComponent<WearNTear>();
@@ -922,13 +922,13 @@ namespace ItemDrawers.Game
             int index = 1;
             foreach (var offset in faces)
             {
-                var snap = new GameObject($"snappoint_{index++}") { tag = "snappoint" };
+                var snap = new GameObject($"snappoint_{(index++).ToString()}") { tag = "snappoint" };
                 snap.transform.SetParent(go.transform, false);
                 snap.transform.localPosition = offset;
             }
             foreach (var offset in corners)
             {
-                var snap = new GameObject($"snappoint_{index++}") { tag = "snappoint" };
+                var snap = new GameObject($"snappoint_{(index++).ToString()}") { tag = "snappoint" };
                 snap.transform.SetParent(go.transform, false);
                 snap.transform.localPosition = offset;
             }
@@ -979,14 +979,14 @@ namespace ItemDrawers.Game
                 if (sprite == null)
                 {
                     DrawerPlugin.Log.LogWarning(
-                        $"RenderManager returned no sprite for {tier}; falling back to donor icon.");
+                        $"RenderManager returned no sprite for {DrawerTiers.Name(tier)}; falling back to donor icon.");
                 }
                 return sprite;
             }
             catch (System.Exception ex)
             {
                 DrawerPlugin.Log.LogWarning(
-                    $"RenderManager threw rendering {tier}'s icon ({ex.Message}); falling back to donor icon.");
+                    $"RenderManager threw rendering {DrawerTiers.Name(tier)}'s icon ({ex.Message}); falling back to donor icon.");
                 return null;
             }
         }

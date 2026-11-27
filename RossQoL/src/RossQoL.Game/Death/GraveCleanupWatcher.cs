@@ -174,8 +174,10 @@ namespace RossQoL.Game.Death
             // first because finding every tombstone in the scene is the
             // expensive half, and the usual pass has nothing in range.
             _inRange.Clear();
-            foreach (var grave in DeathState.Graves())
+            var graves = DeathState.Graves();
+            for (int i = 0; i < graves.Count; i++)
             {
+                var grave = graves[i];
                 var at = new Vector3(grave.X, grave.Y, grave.Z);
                 if (Vector3.Distance(position, at) <= ZoneLoadedRange) _inRange.Add(grave);
             }

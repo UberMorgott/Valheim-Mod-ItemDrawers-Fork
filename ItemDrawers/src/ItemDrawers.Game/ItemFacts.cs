@@ -218,8 +218,10 @@ namespace ItemDrawers.Game
             var inventory = player.GetInventory();
             var spillPos = player.transform.position + player.transform.forward + Vector3.up;
 
-            foreach (var chunk in ChunkSplitter.Chunks(amount, stackSize))
+            var chunks = ChunkSplitter.Chunks(amount, stackSize);
+            for (int i = 0; i < chunks.Count; i++)
             {
+                int chunk = chunks[i];
                 // global::Game: inside a *.Game namespace the bare name Game
                 // binds to the namespace, not the game type.
                 var item = template.Clone();
@@ -243,8 +245,9 @@ namespace ItemDrawers.Game
             if (prefab == null || amount <= 0) return;
 
             int stackSize = MaxStackSize(itemName);
-            foreach (var chunk in ChunkSplitter.Chunks(amount, stackSize))
-                SpillOneStack(prefab, position, chunk);
+            var chunks = ChunkSplitter.Chunks(amount, stackSize);
+            for (int i = 0; i < chunks.Count; i++)
+                SpillOneStack(prefab, position, chunks[i]);
         }
 
         private static void SpillOneStack(GameObject prefab, Vector3 position, int stack)

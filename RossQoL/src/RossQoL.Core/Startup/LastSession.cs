@@ -99,13 +99,35 @@ namespace RossQoL.Core.Startup
             unchecked
             {
                 int hash = (int)Kind;
-                hash = (hash * 397) ^ CharacterFile.GetHashCode();
-                hash = (hash * 397) ^ WorldName.GetHashCode();
-                hash = (hash * 397) ^ ServerAddress.GetHashCode();
+                hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(CharacterFile);
+                hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(WorldName);
+                hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(ServerAddress);
                 return hash;
             }
         }
 
-        public override string ToString() => $"{Kind} '{DisplayName}' as {CharacterFile}";
+        internal static string KindName(SessionKind kind)
+        {
+            switch (kind)
+            {
+                case SessionKind.LocalWorld: return "LocalWorld";
+                case SessionKind.Server: return "Server";
+                default: return ((int)kind).ToString();
+            }
+        }
+
+        internal static string ServerKindName(ServerKind kind)
+        {
+            switch (kind)
+            {
+                case ServerKind.None: return "None";
+                case ServerKind.Dedicated: return "Dedicated";
+                case ServerKind.SteamUser: return "SteamUser";
+                case ServerKind.PlayFab: return "PlayFab";
+                default: return ((int)kind).ToString();
+            }
+        }
+
+        public override string ToString() => $"{KindName(Kind)} '{DisplayName}' as {CharacterFile}";
     }
 }

@@ -53,8 +53,10 @@ namespace RossQoL.Game.Framework
             // the loop and leave later classes silently unpatched. This also
             // keeps a broken mod patching the same method from taking us down.
             int failed = 0;
-            foreach (var type in feature.PatchClasses)
+            var patchClasses = feature.PatchClasses as IReadOnlyList<Type> ?? new List<Type>(feature.PatchClasses);
+            for (int i = 0; i < patchClasses.Count; i++)
             {
+                var type = patchClasses[i];
                 if (!AppliedPatchClasses.Add(type))
                 {
                     log.LogInfo($"{feature.Name}: patch class {type.Name} already applied by another feature; shared.");
@@ -87,7 +89,7 @@ namespace RossQoL.Game.Framework
 
             log.LogInfo(failed == 0 && !activationFailed
                 ? $"{feature.Name} patched."
-                : $"{feature.Name} patched with {failed} failed patch class(es)"
+                : $"{feature.Name} patched with {failed.ToString()} failed patch class(es)"
                   + (activationFailed ? " and a failed activation." : "."));
         }
     }

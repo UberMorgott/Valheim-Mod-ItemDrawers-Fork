@@ -100,7 +100,7 @@ namespace ItemDrawers.Game
                 lifted[i + 3] = src[i + 3];
             }
 
-            var tex = BuildTexture(lifted, $"albedo_bright{key}", tier, linear: false);
+            var tex = BuildTexture(lifted, $"albedo_bright{key.ToString()}", tier, linear: false);
             _brightCache[(tier, key)] = tex;
             return tex;
         }
@@ -187,7 +187,7 @@ namespace ItemDrawers.Game
         {
             var tex = new Texture2D(Size, Size, TextureFormat.RGBA32, mipChain: true, linear: linear)
             {
-                name = $"rid_drawer_{tier}_{kind}",
+                name = $"rid_drawer_{DrawerTiers.Name(tier)}_{kind}",
                 wrapMode = TextureWrapMode.Repeat,
                 filterMode = FilterMode.Bilinear
             };

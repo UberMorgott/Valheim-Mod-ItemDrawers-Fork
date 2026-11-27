@@ -23,8 +23,8 @@ namespace RossQoL.Core.Startup
 
             var fields = new[]
             {
-                Version, session.Kind.ToString(), session.CharacterFile, session.CharacterSource,
-                session.WorldName, session.WorldSource, session.ServerKind.ToString(),
+                Version, LastSession.KindName(session.Kind), session.CharacterFile, session.CharacterSource,
+                session.WorldName, session.WorldSource, LastSession.ServerKindName(session.ServerKind),
                 session.ServerAddress, session.JoinCode, session.DisplayName,
             };
 

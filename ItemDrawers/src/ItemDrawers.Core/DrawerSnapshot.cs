@@ -21,8 +21,11 @@ namespace ItemDrawers.Core
         public bool Equals(DrawerSnapshot other) =>
             string.Equals(ItemName, other.ItemName, StringComparison.Ordinal) && Amount == other.Amount;
 
+        public static bool operator ==(DrawerSnapshot left, DrawerSnapshot right) => left.Equals(right);
+        public static bool operator !=(DrawerSnapshot left, DrawerSnapshot right) => !left.Equals(right);
+
         public override bool Equals(object obj) => obj is DrawerSnapshot s && Equals(s);
-        public override int GetHashCode() => (ItemName?.GetHashCode() ?? 0) * 397 ^ Amount;
-        public override string ToString() => IsAssigned ? $"{ItemName} x{Amount}" : "(empty drawer)";
+        public override int GetHashCode() => (ItemName != null ? StringComparer.Ordinal.GetHashCode(ItemName) : 0) * 397 ^ Amount;
+        public override string ToString() => IsAssigned ? $"{ItemName} x{Amount.ToString()}" : "(empty drawer)";
     }
 }

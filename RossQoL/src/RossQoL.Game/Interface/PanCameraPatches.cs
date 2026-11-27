@@ -23,8 +23,10 @@ namespace RossQoL.Game.Interface
             // ZInput, not Input: it respects the game's own "is the player
             // typing" state, so panning never fires while a text box has focus.
             if (!ZInput.GetKey(key.Value.MainKey)) return false;
-            foreach (var modifier in key.Value.Modifiers)
-                if (!ZInput.GetKey(modifier)) return false;
+            var modifiers = key.Value.Modifiers as System.Collections.Generic.IReadOnlyList<KeyCode>
+                ?? new System.Collections.Generic.List<KeyCode>(key.Value.Modifiers);
+            for (int i = 0; i < modifiers.Count; i++)
+                if (!ZInput.GetKey(modifiers[i])) return false;
 
             return true;
         }

@@ -32,8 +32,9 @@ namespace RossQoL.Game.Framework
                 ConfigText.Description(Description, Scope,
                     requiresRestart: false, turningOnRequiresRestart: Scope == FeatureScope.Client));
 
-            foreach (var feature in Features)
+            for (int i = 0; i < Features.Count; i++)
             {
+                var feature = Features[i];
                 feature.Toggle = config.Bind(Section, feature.Key, true,
                     ConfigText.Description(feature.Description, feature.Scope,
                         requiresRestart: false, turningOnRequiresRestart: feature.Scope == FeatureScope.Client));

@@ -82,7 +82,7 @@ namespace RossQoL.Game.Crafting
             station.m_repairItemDoneEffects.Create(station.transform.position, Quaternion.identity);
             player.Message(MessageHud.MessageType.Center, repaired == 1
                 ? Localization.instance.Localize("$msg_repaired", lastName)
-                : $"{Localization.instance.Localize("$msg_repaired", string.Empty).Trim()} x{repaired}");
+                : $"{Localization.instance.Localize("$msg_repaired", string.Empty).Trim()} x{repaired.ToString()}");
         }
 
         /// <summary>Vanilla's own check: the item's recipe against this station's type and level.</summary>

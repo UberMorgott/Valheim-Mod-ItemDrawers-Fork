@@ -140,7 +140,7 @@ namespace RossQoL.Game.Portals
             // SummonUnsummonGuard.
             SummonUnsummonGuard.Guard(ids);
 
-            RossQoLPlugin.Log.LogInfo($"TamesFollow: bringing {ids.Count} tame(s).");
+            RossQoLPlugin.Log.LogInfo($"TamesFollow: bringing {ids.Count.ToString()} tame(s).");
         }
 
         private void Update()
@@ -161,8 +161,8 @@ namespace RossQoL.Game.Portals
             if (Time.time - _pending.CapturedAt > PendingExpirySeconds)
             {
                 RossQoLPlugin.Log.LogWarning(
-                    $"TamesFollow: arrival never registered within {PendingExpirySeconds:F0}s; "
-                    + $"leaving {_pending.Tames.Count} tame(s) where they are.");
+                    $"TamesFollow: arrival never registered within {PendingExpirySeconds.ToString("F0")}s; "
+                    + $"leaving {_pending.Tames.Count.ToString()} tame(s) where they are.");
                 _pending = null;
                 _wasTeleporting = false;
 
@@ -220,10 +220,10 @@ namespace RossQoL.Game.Portals
                 if (TameMoveOutcomes.Arrived(outcome)) moved++;
                 else
                     RossQoLPlugin.Log.LogWarning(
-                        $"TamesFollow: tame {_pending.Tames[i]} did not arrive ({outcome}).");
+                        $"TamesFollow: tame {_pending.Tames[i].ToString()} did not arrive ({RossQoL.Game.Framework.EnumText.Name(outcome)}).");
             }
 
-            RossQoLPlugin.Log.LogInfo($"TamesFollow: {moved} of {_pending.Tames.Count} tame(s) arrived.");
+            RossQoLPlugin.Log.LogInfo($"TamesFollow: {moved.ToString()} of {_pending.Tames.Count.ToString()} tame(s) arrived.");
         }
 
         /// <summary>

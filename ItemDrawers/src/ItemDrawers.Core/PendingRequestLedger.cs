@@ -103,6 +103,20 @@ namespace ItemDrawers.Core
                 yield return new KeyValuePair<long, T>(kv.Key, kv.Value.Payload);
         }
 
+        /// <summary>Appends all still-pending (id, payload) pairs into <paramref name="into"/> without allocating an enumerator.</summary>
+        public void CopyAll(List<KeyValuePair<long, T>> into)
+        {
+            foreach (var kv in _pending)
+                into.Add(new KeyValuePair<long, T>(kv.Key, kv.Value.Payload));
+        }
+
+        /// <summary>Appends all still-pending request ids into <paramref name="into"/> without allocating an enumerator.</summary>
+        public void CopyIds(List<long> into)
+        {
+            foreach (var kv in _pending)
+                into.Add(kv.Key);
+        }
+
         /// <summary>
         /// Advances the ledger's notion of time. Every request past its
         /// deadline either gets another attempt (bumping Attempts and

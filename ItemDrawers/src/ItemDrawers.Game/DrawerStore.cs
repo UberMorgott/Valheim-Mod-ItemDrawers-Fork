@@ -82,29 +82,57 @@ namespace ItemDrawers.Game
         internal static void Granted(DrawerComponent drawer, string item, int amount)
         {
             var handlers = Instance?.WithdrawGranted;
-            if (handlers != null) Reply(() => handlers(drawer, item, amount));
+            if (handlers == null) return;
+            try { handlers(drawer, item, amount); }
+            catch (Exception e) { LogCallbackFailure(e); }
         }
 
         // Give-ups fire from inside PendingRequestLedger.Tick / ResolvePendingForDrawer, neither of which a callback may
         // re-enter (a reply resolving another due id would throw there): run after them, from DrawerManager.Update.
         private static readonly List<Action> Later = new List<Action>();
+        private static readonly List<(Action<long> Callback, long Id)> LaterIds = new List<(Action<long>, long)>();
 
         internal static void ReplyLater(Action reply) => Later.Add(reply);
 
+        internal static void ReplyLater(Action<long> reply, long id) => LaterIds.Add((reply, id));
+
         internal static void FlushLater()
         {
-            if (Later.Count == 0) return;
-            var batch = Later.ToArray();
-            Later.Clear();
-            foreach (var reply in batch) Reply(reply);
+            if (Later.Count > 0)
+            {
+                var batch = Later.ToArray();
+                Later.Clear();
+                for (int i = 0; i < batch.Length; i++) Reply(batch[i]);
+            }
+
+            if (LaterIds.Count > 0)
+            {
+                var batch = LaterIds.ToArray();
+                LaterIds.Clear();
+                for (int i = 0; i < batch.Length; i++)
+                {
+                    try { batch[i].Callback(batch[i].Id); }
+                    catch (Exception e) { LogCallbackFailure(e); }
+                }
+            }
         }
 
         /// <summary>A consumer's callback never breaks the drawer's own flow (RPC handler, ledger tick).</summary>
         internal static void Reply(Action reply)
         {
             try { reply(); }
-            catch (Exception e) { DrawerPlugin.Log.LogWarning($"IDrawerStore callback failed: {e.GetBaseException().Message}"); }
+            catch (Exception e) { LogCallbackFailure(e); }
         }
+
+        internal static void Reply(Action<long, string, int> reply, long id, string itemName, int amount)
+        {
+            if (reply == null) return;
+            try { reply(id, itemName, amount); }
+            catch (Exception e) { LogCallbackFailure(e); }
+        }
+
+        private static void LogCallbackFailure(Exception e) =>
+            DrawerPlugin.Log.LogWarning($"IDrawerStore callback failed: {e.GetBaseException().Message}");
 
         private static DrawerComponent Drawer(Container drawer) =>
             drawer as DrawerComponent ?? throw new ArgumentException("not an ItemDrawers drawer", nameof(drawer));

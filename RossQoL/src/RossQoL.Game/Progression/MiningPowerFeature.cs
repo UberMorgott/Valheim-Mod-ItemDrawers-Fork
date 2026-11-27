@@ -107,7 +107,7 @@ namespace RossQoL.Game.Progression
             }
         }
 
-        private static string BiomeAt(Vector3 point) => Heightmap.FindBiome(point).ToString();
+        private static string BiomeAt(Vector3 point) => EnumText.Name(Heightmap.FindBiome(point));
 
         private static bool HasKey(string key) =>
             ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey(key);

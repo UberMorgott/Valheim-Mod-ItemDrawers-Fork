@@ -99,8 +99,8 @@ namespace RossQoL.Game.Progression
                 if (stubborn > 0)
                 {
                     RossQoLPlugin.Log.LogWarning(
-                        $"DungeonRespawn: leaving the {biome} dungeon at {generator.transform.position} alone -- "
-                        + $"{stubborn} of its objects would not clear, and rebuilding over them would double them.");
+                        $"DungeonRespawn: leaving the {biome} dungeon at {generator.transform.position.ToString()} alone -- "
+                        + $"{stubborn.ToString()} of its objects would not clear, and rebuilding over them would double them.");
                     return false;
                 }
 
@@ -108,8 +108,8 @@ namespace RossQoL.Game.Progression
                 generator.Generate(seed, ZoneSystem.SpawnMode.Full);
 
                 RossQoLPlugin.Log.LogInfo(
-                    $"DungeonRespawn: rebuilt the {biome} dungeon at {generator.transform.position} "
-                    + $"from seed {seed}, clearing {removed} objects.");
+                    $"DungeonRespawn: rebuilt the {biome} dungeon at {generator.transform.position.ToString()} "
+                    + $"from seed {seed.ToString()}, clearing {removed.ToString()} objects.");
                 return true;
             }
             catch (Exception ex)

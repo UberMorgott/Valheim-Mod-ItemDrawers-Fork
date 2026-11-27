@@ -7,11 +7,8 @@ namespace RossQoL.Core.Tests.Progression
 {
     public class WorldFrontierTests
     {
-        private static Func<string, bool> Killed(params string[] keys)
-        {
-            var set = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
-            return key => key != null && set.Contains(key);
-        }
+        private static Func<string, bool> Killed(params string[] keys) =>
+            new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase).Contains;
 
         [Fact]
         public void A_fresh_world_is_at_the_meadows()

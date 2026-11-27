@@ -211,19 +211,36 @@ namespace ItemDrawers.Core.Tests
         /// recoverable, by design, and is documented as an accepted
         /// residual rather than "fixed").
         /// </summary>
+        private sealed class GiveUpSpillState
+        {
+            public int Ground;
+            public int InFlight;
+            public int GiveUps;
+
+            public void OnRetry(long id, int payload) { }
+
+            public void OnGiveUp(long id, int spilled)
+            {
+                GiveUps++;
+                Ground += spilled;
+                InFlight -= spilled;
+            }
+        }
+
         [Fact]
         public void Deposit_with_no_reply_ever_arriving_conserves_via_the_give_up_spill()
         {
             var ledger = new PendingRequestLedger<int>(timeoutSeconds: 5f, maxAttempts: 3);
 
-            int drawer = 400, player = 500, ground = 0, inFlight = 0;
-            int total = drawer + player + ground + inFlight;
+            int drawer = 400, player = 500;
+            var state = new GiveUpSpillState();
+            int total = drawer + player + state.Ground + state.InFlight;
 
             int removed = 100;
             player -= removed;
-            inFlight += removed;
+            state.InFlight += removed;
             ledger.Add(id: 1, removed, now: 0f);
-            AssertConserved(total, drawer, player, ground, inFlight, "after removal, request sent");
+            AssertConserved(total, drawer, player, state.Ground, state.InFlight, "after removal, request sent");
 
             // The owner never replies -- not even once. Every retry the
             // ledger issues goes unanswered (the real DrawerComponent
@@ -231,26 +248,18 @@ namespace ItemDrawers.Core.Tests
             // only the requester's own bookkeeping, which does not care
             // why no reply came back).
             float now = 0f;
-            int giveUps = 0;
             for (int attempt = 0; attempt < 3; attempt++)
             {
                 now += 5f;
-                ledger.Tick(now,
-                    retry: (_, __) => { /* resend -- no reply modelled, nothing changes here */ },
-                    giveUp: (_, spilled) =>
-                    {
-                        giveUps++;
-                        ground += spilled;
-                        inFlight -= spilled;
-                    });
-                AssertConserved(total, drawer, player, ground, inFlight, $"after tick {attempt}");
+                ledger.Tick(now, state.OnRetry, state.OnGiveUp);
+                AssertConserved(total, drawer, player, state.Ground, state.InFlight, $"after tick {attempt}");
             }
 
-            Assert.Equal(1, giveUps);
+            Assert.Equal(1, state.GiveUps);
             Assert.Equal(0, ledger.Count);
-            Assert.Equal(0, inFlight);
-            Assert.Equal(100, ground);   // the removed amount landed on the ground, not nowhere
-            AssertConserved(total, drawer, player, ground, inFlight, "final");
+            Assert.Equal(0, state.InFlight);
+            Assert.Equal(100, state.Ground);   // the removed amount landed on the ground, not nowhere
+            AssertConserved(total, drawer, player, state.Ground, state.InFlight, "final");
         }
 
         /// <summary>

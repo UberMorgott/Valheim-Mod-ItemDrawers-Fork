@@ -42,12 +42,19 @@ namespace RossQoL.Game.Progression
                 var nview = generator.GetComponent<ZNetView>();
                 if (nview == null || !nview.IsValid()) return;
 
-                nview.Register<int>(VisitRpc, (sender, day) => Receive(nview, day));
+                nview.Register<int>(VisitRpc, new VisitReceiver(nview).OnReceive);
             }
             catch (Exception ex)
             {
                 RossQoLPlugin.Log.LogError($"DungeonRespawn: could not listen for visits on a dungeon: {ex}");
             }
+        }
+
+        private sealed class VisitReceiver
+        {
+            private readonly ZNetView _nview;
+            public VisitReceiver(ZNetView nview) => _nview = nview;
+            public void OnReceive(long sender, int day) => Receive(_nview, day);
         }
 
         /// <summary>The day stamped on a dungeon, or null when it carries none. Needs no ownership.</summary>
@@ -91,7 +98,7 @@ namespace RossQoL.Game.Progression
                     }
                 }
 
-                nview.InvokeRPC(VisitRpc, today);
+                RossQoL.Game.Framework.RpcSend.ToOwner(nview, VisitRpc, today);
             }
             catch (Exception ex)
             {

@@ -23,8 +23,10 @@ namespace RossQoL.Game.Framework
             var missing = new List<string>();
             if (members == null) return missing;
 
-            foreach (var m in members)
+            var list = members as IReadOnlyList<CompatMember> ?? new List<CompatMember>(members);
+            for (int i = 0; i < list.Count; i++)
             {
+                var m = list[i];
                 var type = AccessTools.TypeByName(m.Type);
                 if (type == null)
                 {
@@ -94,10 +96,83 @@ namespace RossQoL.Game.Framework
         private static bool HasMethod(Type type, string name)
         {
             for (var t = type; t != null; t = t.BaseType)
-                if (t.GetMethods(AccessTools.all).Any(m => m.Name == name))
-                    return true;
+            {
+                var methods = t.GetMethods(AccessTools.all);
+                for (int i = 0; i < methods.Length; i++)
+                    if (methods[i].Name == name) return true;
+            }
 
             return false;
+        }
+    }
+
+    internal static class EnumText
+    {
+        private static class Cache<T> where T : struct, Enum
+        {
+            public static readonly Dictionary<T, string> Names = Build();
+
+            private static Dictionary<T, string> Build()
+            {
+                var values = (T[])Enum.GetValues(typeof(T));
+                var names = Enum.GetNames(typeof(T));
+                var map = new Dictionary<T, string>(values.Length);
+                for (int i = 0; i < values.Length && i < names.Length; i++)
+                    map[values[i]] = names[i];
+                return map;
+            }
+        }
+
+        public static string Name<T>(T value) where T : struct, Enum =>
+            Cache<T>.Names.TryGetValue(value, out var name) ? name : string.Empty;
+    }
+
+    internal static class RpcSend
+    {
+        public static void ToOwner(ZNetView nview, string methodName, int arg0)
+        {
+            var rpc = ZRoutedRpc.instance;
+            var zdo = nview.GetZDO();
+            var data = Create(rpc, zdo.GetOwner(), zdo.m_uid, methodName);
+            data.m_parameters.Write(arg0);
+            Dispatch(rpc, data);
+        }
+
+        public static void ToOwner(ZNetView nview, string methodName, int arg0, bool arg1)
+        {
+            var rpc = ZRoutedRpc.instance;
+            var zdo = nview.GetZDO();
+            var data = Create(rpc, zdo.GetOwner(), zdo.m_uid, methodName);
+            data.m_parameters.Write(arg0);
+            data.m_parameters.Write(arg1);
+            Dispatch(rpc, data);
+        }
+
+        public static void ToOwner(ZNetView nview, string methodName, string arg0, bool arg1)
+        {
+            var rpc = ZRoutedRpc.instance;
+            var zdo = nview.GetZDO();
+            var data = Create(rpc, zdo.GetOwner(), zdo.m_uid, methodName);
+            data.m_parameters.Write(arg0 ?? "");
+            data.m_parameters.Write(arg1);
+            Dispatch(rpc, data);
+        }
+
+        private static ZRoutedRpc.RoutedRPCData Create(ZRoutedRpc rpc, long targetPeerId, ZDOID targetZdo, string methodName) =>
+            new ZRoutedRpc.RoutedRPCData
+            {
+                m_msgID = rpc.m_id + rpc.m_rpcMsgID++,
+                m_senderPeerID = rpc.m_id,
+                m_targetPeerID = targetPeerId,
+                m_targetZDO = targetZdo,
+                m_methodHash = methodName.GetStableHashCode(),
+            };
+
+        private static void Dispatch(ZRoutedRpc rpc, ZRoutedRpc.RoutedRPCData data)
+        {
+            data.m_parameters.SetPos(0);
+            if (data.m_targetPeerID == rpc.m_id || data.m_targetPeerID == 0L) rpc.HandleRoutedRPC(data);
+            if (data.m_targetPeerID != rpc.m_id) rpc.RouteRPC(data);
         }
     }
 }

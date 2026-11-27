@@ -569,9 +569,9 @@ namespace ItemDrawers.Game
         {
             int total = 0;
             foreach (var item in _inventory.GetAllItems()) total += item.m_stack;
-            return $"slots={_inventory.GetWidth() * _inventory.GetHeight()} stacks={_inventory.NrOfItems()} "
-                   + $"total={total} baseline={_localBaseline} dirty={_dirty} unresolved={_unresolved} "
-                   + $"carriedForeign={_carriedForeign.Count}";
+            return $"slots={(_inventory.GetWidth() * _inventory.GetHeight()).ToString()} stacks={_inventory.NrOfItems().ToString()} "
+                   + $"total={total.ToString()} baseline={_localBaseline.ToString()} dirty={_dirty.ToString()} unresolved={_unresolved.ToString()} "
+                   + $"carriedForeign={_carriedForeign.Count.ToString()}";
         }
 
         internal static byte[] Encode(IReadOnlyList<int> slots, IReadOnlyList<KeyValuePair<string, int>> foreign)
@@ -636,7 +636,7 @@ namespace ItemDrawers.Game
             }
             catch (Exception ex)
             {
-                DrawerPlugin.Log.LogWarning($"Unreadable drawer ViewSlots ({data.Length} bytes); rebuilding it. {ex.GetType().Name}: {ex.Message}");
+                DrawerPlugin.Log.LogWarning($"Unreadable drawer ViewSlots ({data.Length.ToString()} bytes); rebuilding it. {ex.GetType().Name}: {ex.Message}");
                 return false;
             }
         }
@@ -788,7 +788,7 @@ namespace ItemDrawers.Game
                     {
                         _warnedNoDropPrefab = true;
                         DrawerPlugin.Log.LogWarning(
-                            $"Drawer {_drawer.ZdoId}: dropping an item from its view with no m_dropPrefab "
+                            $"Drawer {_drawer.ZdoId.ToString()}: dropping an item from its view with no m_dropPrefab "
                             + $"(m_shared.m_name=\"{sharedName}\"); it cannot be identified or spilled. "
                             + "Further such items in this drawer are dropped without a warning.");
                     }
@@ -819,7 +819,7 @@ namespace ItemDrawers.Game
         {
             if (value <= MaxEntryValue) return value;
             DrawerPlugin.Log.LogWarning(
-                $"Drawer {_drawer.ZdoId}: \"{name}\" count {value} exceeds the persisted cap ({MaxEntryValue}); clamped.");
+                $"Drawer {_drawer.ZdoId.ToString()}: \"{name}\" count {value.ToString()} exceeds the persisted cap ({MaxEntryValue.ToString()}); clamped.");
             return MaxEntryValue;
         }
 
@@ -849,8 +849,8 @@ namespace ItemDrawers.Game
             var dropped = ordered.GetRange(MaxForeignEntries, ordered.Count - MaxForeignEntries);
             var droppedNames = string.Join(", ", dropped.ConvertAll(kv => kv.Key));
             DrawerPlugin.Log.LogWarning(
-                $"Drawer {_drawer.ZdoId}: {dropped.Count} foreign item type(s) dropped from its view "
-                + $"(more than {MaxForeignEntries} distinct types accumulated): {droppedNames}");
+                $"Drawer {_drawer.ZdoId.ToString()}: {dropped.Count.ToString()} foreign item type(s) dropped from its view "
+                + $"(more than {MaxForeignEntries.ToString()} distinct types accumulated): {droppedNames}");
 
             return kept;
         }
@@ -920,15 +920,15 @@ namespace ItemDrawers.Game
                 if (delta < 0)
                 {
                     DrawerPlugin.Log.LogWarning(
-                        $"Drawer {_drawer.ZdoId}: view write delta {delta} has no stored slots to apply to; dropped.");
+                        $"Drawer {_drawer.ZdoId.ToString()}: view write delta {delta.ToString()} has no stored slots to apply to; dropped.");
                     return stored;
                 }
 
                 long capped = Math.Min(delta, MaxEntryValue);
                 if (delta > MaxEntryValue)
                     DrawerPlugin.Log.LogWarning(
-                        $"Drawer {_drawer.ZdoId}: view write of +{delta} into empty stored slots exceeds "
-                        + $"the persisted cap ({MaxEntryValue}); clamped.");
+                        $"Drawer {_drawer.ZdoId.ToString()}: view write of +{delta.ToString()} into empty stored slots exceeds "
+                        + $"the persisted cap ({MaxEntryValue.ToString()}); clamped.");
                 return new[] { (int)capped };
             }
 
@@ -946,8 +946,8 @@ namespace ItemDrawers.Game
 
                 if (remaining > 0)
                     DrawerPlugin.Log.LogWarning(
-                        $"Drawer {_drawer.ZdoId}: view write of +{delta} exceeds what its stored slots can "
-                        + $"hold (every slot already at the {MaxEntryValue} cap); {remaining} dropped.");
+                        $"Drawer {_drawer.ZdoId.ToString()}: view write of +{delta.ToString()} exceeds what its stored slots can "
+                        + $"hold (every slot already at the {MaxEntryValue.ToString()} cap); {remaining.ToString()} dropped.");
 
                 return stored;
             }
@@ -963,8 +963,8 @@ namespace ItemDrawers.Game
             if (removing > 0)
             {
                 DrawerPlugin.Log.LogWarning(
-                    $"Drawer {_drawer.ZdoId}: view write reports removing {-delta} but the stored view only "
-                    + $"had {-delta - removing}; the rest could not be applied.");
+                    $"Drawer {_drawer.ZdoId.ToString()}: view write reports removing {(-delta).ToString()} but the stored view only "
+                    + $"had {(-delta - removing).ToString()}; the rest could not be applied.");
             }
 
             return stored;

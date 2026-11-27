@@ -22,9 +22,10 @@ namespace RossQoL.Core.Startup
         {
             if (args == null) return false;
 
-            foreach (var arg in args)
-                foreach (var join in JoinArguments)
-                    if (string.Equals(arg, join, StringComparison.Ordinal)) return true;
+            var list = args as IReadOnlyList<string> ?? new List<string>(args);
+            for (int i = 0; i < list.Count; i++)
+                for (int j = 0; j < JoinArguments.Length; j++)
+                    if (string.Equals(list[i], JoinArguments[j], StringComparison.Ordinal)) return true;
 
             return false;
         }

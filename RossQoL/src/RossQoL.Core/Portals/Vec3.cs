@@ -43,6 +43,9 @@ namespace RossQoL.Core.Portals
 
         public bool Equals(Vec3 other) => X == other.X && Y == other.Y && Z == other.Z;
 
+        public static bool operator ==(Vec3 left, Vec3 right) => left.Equals(right);
+        public static bool operator !=(Vec3 left, Vec3 right) => !left.Equals(right);
+
         public override bool Equals(object obj) => obj is Vec3 other && Equals(other);
 
         public override int GetHashCode()
@@ -56,6 +59,6 @@ namespace RossQoL.Core.Portals
             }
         }
 
-        public override string ToString() => $"({X:F2}, {Y:F2}, {Z:F2})";
+        public override string ToString() => $"({X.ToString("F2")}, {Y.ToString("F2")}, {Z.ToString("F2")})";
     }
 }

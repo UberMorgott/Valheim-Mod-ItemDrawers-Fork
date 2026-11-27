@@ -281,11 +281,35 @@ namespace RossPortals.Game.UI
             return go.GetComponent<Toggle>();
         }
 
+        private sealed class SortClickHandler
+        {
+            private readonly PortalConfigPanel _panel;
+            private readonly SortMode _mode;
+            public SortClickHandler(PortalConfigPanel panel, SortMode mode) { _panel = panel; _mode = mode; }
+            public void Invoke() { _panel._sort = _mode; _panel.Rebuild(); }
+        }
+
+        private sealed class GroupClickHandler
+        {
+            private readonly PortalConfigPanel _panel;
+            private readonly string _path;
+            public GroupClickHandler(PortalConfigPanel panel, string path) { _panel = panel; _path = path; }
+            public void Invoke() { if (!_panel._collapsed.Remove(_path)) _panel._collapsed.Add(_path); _panel.Rebuild(); }
+        }
+
+        private sealed class SelectClickHandler
+        {
+            private readonly PortalConfigPanel _panel;
+            private readonly string _key;
+            public SelectClickHandler(PortalConfigPanel panel, string key) { _panel = panel; _key = key; }
+            public void Invoke() => _panel.Select(_key);
+        }
+
         private void CreateSortButton(SortMode mode, string token, float x, Font font)
         {
             var button = GUIManager.Instance.CreateButton(token, _panel.transform,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(x, -156f), 150f, 30f);
-            button.GetComponent<Button>().onClick.AddListener(() => { _sort = mode; Rebuild(); });
+            button.GetComponent<Button>().onClick.AddListener(new SortClickHandler(this, mode).Invoke);
             _sortLabels[mode] = button.GetComponentInChildren<Text>();
         }
 
@@ -335,7 +359,7 @@ namespace RossPortals.Game.UI
             BuildRow("(no destination)", "", 0, isGroup: false, selected: _selectedKey == null,
                 () => Select(null), selectable: true, key: null);
 
-            foreach (var row in rows) AddRow(row);
+            for (int i = 0; i < rows.Count; i++) AddRow(rows[i]);
         }
 
         // Visual equality of two projected row lists: only the fields the panel
@@ -361,10 +385,9 @@ namespace RossPortals.Game.UI
             if (row.Kind == RowKind.Group)
             {
                 var arrow = row.Collapsed ? "\u25B6" : "\u25BC"; // ▶ / ▼
-                var path = row.GroupPath;
                 BuildRow(row.Label, row.PortalCount.ToString(), row.Depth,
                     isGroup: true, selected: false,
-                    () => { if (!_collapsed.Remove(path)) _collapsed.Add(path); Rebuild(); },
+                    new GroupClickHandler(this, row.GroupPath).Invoke,
                     arrow);
                 return;
             }
@@ -374,7 +397,7 @@ namespace RossPortals.Game.UI
             var key = row.PortalId;
             BuildRow(name, FormatDistance(row.Distance), row.Depth,
                 isGroup: false, selected: selected,
-                () => Select(key), selectable: true, key: key);
+                new SelectClickHandler(this, key).Invoke, selectable: true, key: key);
         }
 
         // A lightweight list row: a flat, full-width clickable strip with a
@@ -522,8 +545,8 @@ namespace RossPortals.Game.UI
 
         private static string FormatDistance(float metres)
         {
-            if (metres >= 1000f) return $"{metres / 1000f:0.0} km";
-            return $"{(int)metres} m";
+            if (metres >= 1000f) return $"{(metres / 1000f).ToString("0.0")} km";
+            return $"{((int)metres).ToString()} m";
         }
 
     }

@@ -7,11 +7,8 @@ namespace RossQoL.Core.Tests.Progression
 {
     public class DungeonUnlockTests
     {
-        private static Func<string, bool> Killed(params string[] keys)
-        {
-            var set = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
-            return key => set.Contains(key);
-        }
+        private static Func<string, bool> Killed(params string[] keys) =>
+            new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase).Contains;
 
         private static readonly Func<string, bool> EveryBoss = Killed(
             TeleportUnlocks.Elder, TeleportUnlocks.Bonemass, TeleportUnlocks.Moder,
@@ -137,8 +134,10 @@ namespace RossQoL.Core.Tests.Progression
         [Fact]
         public void Every_known_theme_resolves_to_bosses_that_exist()
         {
-            foreach (string theme in DungeonUnlock.KnownThemes)
+            var themes = new List<string>(DungeonUnlock.KnownThemes);
+            for (int i = 0; i < themes.Count; i++)
             {
+                string theme = themes[i];
                 var keys = DungeonUnlock.KeysForThemes(theme);
                 Assert.NotNull(keys);
                 Assert.NotEmpty(keys);

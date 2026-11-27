@@ -62,8 +62,8 @@ namespace RossPortals.Core.Tests
 
             Assert.Equal(RowKind.Group, rows[0].Kind);
             Assert.Equal("Zeta", rows[0].Label);
-            Assert.Equal(RowKind.Portal, rows.Last().Kind);
-            Assert.Equal("Aaa", rows.Last().Label);
+            Assert.Equal(RowKind.Portal, rows[rows.Count - 1].Kind);
+            Assert.Equal("Aaa", rows[rows.Count - 1].Label);
         }
 
         [Fact]

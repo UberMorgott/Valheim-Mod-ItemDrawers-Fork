@@ -28,12 +28,22 @@ namespace RossPortals.Game.Portals
         /// live record. Linear, but a world has dozens–hundreds of portals and
         /// this runs once per selection, not per frame.</summary>
         public PortalRecord GetByKey(string key)
-            => key == null ? null : _portals.Values.FirstOrDefault(p => p.Key == key);
+        {
+            if (key == null) return null;
+            foreach (var p in _portals.Values)
+                if (p.Key == key) return p;
+            return null;
+        }
 
         public List<PortalRecord> GetList() => _portals.Values.ToList();
 
         public List<PortalRecord> GetPortalsWithTarget(ZDOID target)
-            => _portals.Values.Where(p => p.Target == target).ToList();
+        {
+            var matches = new List<PortalRecord>();
+            foreach (var p in _portals.Values)
+                if (p.Target == target) matches.Add(p);
+            return matches;
+        }
 
         public PortalRecord AddOrUpdate(PortalRecord portal)
         {
@@ -87,11 +97,19 @@ namespace RossPortals.Game.Portals
 
         private void ReplaceAll(List<PortalRecord> incoming)
         {
-            foreach (var portal in incoming) AddOrUpdate(portal);
+            var incomingIds = new HashSet<ZDOID>();
+            for (int i = 0; i < incoming.Count; i++)
+            {
+                var portal = incoming[i];
+                AddOrUpdate(portal);
+                incomingIds.Add(portal.Id);
+            }
 
-            var incomingIds = new HashSet<ZDOID>(incoming.Select(p => p.Id));
-            foreach (var id in _portals.Keys.Where(id => !incomingIds.Contains(id)).ToList())
-                _portals.Remove(id);
+            var stale = new List<ZDOID>();
+            foreach (var id in _portals.Keys)
+                if (!incomingIds.Contains(id)) stale.Add(id);
+            for (int i = 0; i < stale.Count; i++)
+                _portals.Remove(stale[i]);
         }
     }
 }

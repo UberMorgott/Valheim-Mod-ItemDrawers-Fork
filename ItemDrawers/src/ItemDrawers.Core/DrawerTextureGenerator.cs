@@ -25,7 +25,7 @@ namespace ItemDrawers.Core
         public static TextureData Generate(TextureTier tier, int width, int height, int seed)
         {
             if (width < 2 || height < 2)
-                throw new ArgumentException($"Texture must be at least 2x2, got {width}x{height}.");
+                throw new ArgumentException($"Texture must be at least 2x2, got {width.ToString()}x{height.ToString()}.");
 
             float[] heights = BuildHeightField(tier, width, height, seed);
 

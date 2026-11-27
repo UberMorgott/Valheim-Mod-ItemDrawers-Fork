@@ -225,10 +225,12 @@ namespace RossQoL.Game.Crafting
                 // Nothing can refuse the craft by this point, and the pack has
                 // already been emptied of this ingredient at this quality, so
                 // there is nothing left to charge: say so loudly.
+                int reqAmount = amount;
+                int reqQuality = itemQuality;
                 RossQoLPlugin.Log.LogError(
-                    $"CraftFromChests: {CraftScope.Describe()} cost {amount} {name} (quality {itemQuality}) but only "
-                    + $"{removed + taken} were paid -- {removed} from your pack, {taken} from {boxes.Count} nearby "
-                    + $"container(s). {unpaid} went unpaid; that craft was cheaper than it should have been.");
+                    $"CraftFromChests: {CraftScope.Describe()} cost {reqAmount.ToString()} {name} (quality {reqQuality.ToString()}) but only "
+                    + $"{(removed + taken).ToString()} were paid -- {removed.ToString()} from your pack, {taken.ToString()} from {boxes.Count.ToString()} nearby "
+                    + $"container(s). {unpaid.ToString()} went unpaid; that craft was cheaper than it should have been.");
             }
             catch (Exception ex)
             {

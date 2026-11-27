@@ -191,7 +191,7 @@ namespace RossQoL.Game.Items
         internal static void FinishRecall(Player player)
         {
             int moved = RecallSummonsManager.Recall(player);
-            if (moved > 0) RossQoLPlugin.Log.LogInfo($"RecallSummons: {moved} skeleton(s) recalled.");
+            if (moved > 0) RossQoLPlugin.Log.LogInfo($"RecallSummons: {moved.ToString()} skeleton(s) recalled.");
         }
 
         /// <summary>

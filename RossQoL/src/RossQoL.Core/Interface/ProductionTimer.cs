@@ -1,6 +1,6 @@
 using System;
 
-namespace RossQoL.Core.Interface
+namespace RossQoL.Core.UserInterface
 {
     /// <summary>
     /// How long a producer still needs, and how to say it. Beehives and sap
@@ -57,9 +57,9 @@ namespace RossQoL.Core.Interface
             long minutes = total % 3600 / 60;
             long secs = total % 60;
 
-            if (hours > 0) return $"{hours}h {minutes:00}m";
-            if (minutes > 0) return $"{minutes}m {secs:00}s";
-            return $"{secs}s";
+            if (hours > 0) return $"{hours.ToString()}h {minutes.ToString("00")}m";
+            if (minutes > 0) return $"{minutes.ToString()}m {secs.ToString("00")}s";
+            return $"{secs.ToString()}s";
         }
     }
 }

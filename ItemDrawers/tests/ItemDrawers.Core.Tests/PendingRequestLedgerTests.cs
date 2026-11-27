@@ -1,10 +1,25 @@
 using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace ItemDrawers.Core.Tests
 {
     public class PendingRequestLedgerTests
     {
+        private sealed class TickRecorder
+        {
+            public readonly List<(long Id, int Payload)> Retries = new List<(long, int)>();
+            public readonly List<(long Id, int Payload)> GiveUps = new List<(long, int)>();
+            public bool FailOnGiveUp;
+
+            public void OnRetry(long id, int payload) => Retries.Add((id, payload));
+
+            public void OnGiveUp(long id, int payload)
+            {
+                if (FailOnGiveUp) Assert.Fail("should not give up on the first retry");
+                GiveUps.Add((id, payload));
+            }
+        }
         [Fact]
         public void Add_then_TryComplete_returns_the_payload_and_removes_it()
         {
@@ -44,11 +59,11 @@ namespace ItemDrawers.Core.Tests
             var ledger = new PendingRequestLedger<int>(timeoutSeconds: 5f, maxAttempts: 3);
             ledger.Add(1, 100, now: 0f);
 
-            bool retried = false, gaveUp = false;
-            ledger.Tick(now: 4.9f, retry: (_, __) => retried = true, giveUp: (_, __) => gaveUp = true);
+            var rec = new TickRecorder();
+            ledger.Tick(now: 4.9f, rec.OnRetry, rec.OnGiveUp);
 
-            Assert.False(retried);
-            Assert.False(gaveUp);
+            Assert.Empty(rec.Retries);
+            Assert.Empty(rec.GiveUps);
             Assert.Equal(1, ledger.Count);
         }
 
@@ -58,11 +73,11 @@ namespace ItemDrawers.Core.Tests
             var ledger = new PendingRequestLedger<int>(timeoutSeconds: 5f, maxAttempts: 3);
             ledger.Add(1, 100, now: 0f);
 
-            int retries = 0;
-            ledger.Tick(now: 5f, retry: (id, payload) => { retries++; Assert.Equal(1, id); Assert.Equal(100, payload); },
-                giveUp: (_, __) => Assert.Fail("should not give up on the first retry"));
+            var rec = new TickRecorder { FailOnGiveUp = true };
+            ledger.Tick(now: 5f, rec.OnRetry, rec.OnGiveUp);
 
-            Assert.Equal(1, retries);
+            Assert.Single(rec.Retries);
+            Assert.Equal((1L, 100), rec.Retries[0]);
             Assert.Equal(1, ledger.Count);  // still pending, waiting on the retried attempt
         }
 
@@ -72,23 +87,18 @@ namespace ItemDrawers.Core.Tests
             var ledger = new PendingRequestLedger<int>(timeoutSeconds: 5f, maxAttempts: 3);
             ledger.Add(1, 100, now: 0f);
 
-            float now = 0f;
-            int retries = 0, giveUps = 0;
-            int? givenUpPayload = null;
+            var rec = new TickRecorder();
 
             // Attempt 1 (from Add) expires at t=5 -> retry (attempt 2).
-            now = 5f;
-            ledger.Tick(now, (_, __) => retries++, (_, __) => giveUps++);
+            ledger.Tick(5f, rec.OnRetry, rec.OnGiveUp);
             // Attempt 2 expires at t=10 -> retry (attempt 3).
-            now = 10f;
-            ledger.Tick(now, (_, __) => retries++, (_, __) => giveUps++);
+            ledger.Tick(10f, rec.OnRetry, rec.OnGiveUp);
             // Attempt 3 (the last allowed) expires at t=15 -> give up.
-            now = 15f;
-            ledger.Tick(now, (_, __) => retries++, (id, payload) => { giveUps++; givenUpPayload = payload; });
+            ledger.Tick(15f, rec.OnRetry, rec.OnGiveUp);
 
-            Assert.Equal(2, retries);
-            Assert.Equal(1, giveUps);
-            Assert.Equal(100, givenUpPayload);
+            Assert.Equal(2, rec.Retries.Count);
+            Assert.Single(rec.GiveUps);
+            Assert.Equal(100, rec.GiveUps[0].Payload);
             Assert.Equal(0, ledger.Count);
         }
 
@@ -115,8 +125,7 @@ namespace ItemDrawers.Core.Tests
             ledger.Add(2, 200, now: 0f);
             ledger.TryComplete(1, out _);
 
-            var remaining = new List<int>();
-            foreach (var kv in ledger.All()) remaining.Add(kv.Value);
+            var remaining = ledger.All().Select(kv => kv.Value).ToList();
 
             Assert.Single(remaining);
             Assert.Equal(200, remaining[0]);
@@ -129,10 +138,10 @@ namespace ItemDrawers.Core.Tests
             ledger.Add(1, 1, now: 0f);
             ledger.Add(2, 2, now: 3f);   // added later, deadline is later too
 
-            var retried = new List<long>();
-            ledger.Tick(now: 5f, retry: (id, __) => retried.Add(id), giveUp: (_, __) => { });
+            var rec = new TickRecorder();
+            ledger.Tick(now: 5f, rec.OnRetry, rec.OnGiveUp);
 
-            Assert.Equal(new List<long> { 1 }, retried);  // id 2's deadline (8f) hasn't arrived yet
+            Assert.Equal(new List<long> { 1 }, rec.Retries.Select(r => r.Id).ToList());  // id 2's deadline (8f) hasn't arrived yet
         }
     }
 }

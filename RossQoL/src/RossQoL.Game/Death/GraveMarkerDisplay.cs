@@ -123,7 +123,7 @@ namespace RossQoL.Game.Death
             _glyph.rectTransform.rotation = Quaternion.Euler(0f, 0f, -placement.AngleDegrees);
             _glyph.text = placement.OnScreen ? "▼" : "▲";
 
-            if (dueForRefresh) _distance.text = $"{Mathf.RoundToInt(distance)}m";
+            if (dueForRefresh) _distance.text = $"{Mathf.RoundToInt(distance).ToString()}m";
         }
 
         /// <summary>
@@ -154,11 +154,11 @@ namespace RossQoL.Game.Death
             var clearKey = DeathConfig.ClearGraveKey?.Value;
             if (clearKey == null || clearKey.Value.MainKey == KeyCode.None) return string.Empty;
 
-            string hint = $"Hold {clearKey.Value} to dismiss";
+            string hint = $"Hold {clearKey.Value.ToString()} to dismiss";
 
             var cycleKey = DeathConfig.CycleGraveKey?.Value;
             if (cycleKey != null && cycleKey.Value.MainKey != KeyCode.None && graveCount > 1)
-                hint += $"  ·  {cycleKey.Value} to cycle";
+                hint += $"  ·  {cycleKey.Value.ToString()} to cycle";
 
             return hint;
         }

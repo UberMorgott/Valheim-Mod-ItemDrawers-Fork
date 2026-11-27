@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace RossQoL.Core.Interface
+namespace RossQoL.Core.UserInterface
 {
     /// <summary>How an entry's running total reads once it is written out.</summary>
     public enum NotificationStyle
@@ -66,12 +66,12 @@ namespace RossQoL.Core.Interface
                 switch (Style)
                 {
                     case NotificationStyle.Count:
-                    {
-                        int count = (int)Math.Round(Amount, MidpointRounding.AwayFromZero);
-                        return count > 1
-                            ? Label + " x" + count.ToString(CultureInfo.InvariantCulture)
-                            : Label;
-                    }
+                        {
+                            int count = (int)Math.Round(Amount, MidpointRounding.AwayFromZero);
+                            return count > 1
+                                ? Label + " x" + count.ToString(CultureInfo.InvariantCulture)
+                                : Label;
+                        }
 
                     case NotificationStyle.Progress:
                         return Label + " " + SkillProgress.FormatGain(Amount, Share);

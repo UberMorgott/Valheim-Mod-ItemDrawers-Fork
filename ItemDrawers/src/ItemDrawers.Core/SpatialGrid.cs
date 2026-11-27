@@ -29,7 +29,11 @@ namespace ItemDrawers.Core
 
         public SpatialGrid(float cellSize)
         {
+#if NET8_0_OR_GREATER
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(cellSize, 0f);
+#else
             if (cellSize <= 0f) throw new ArgumentOutOfRangeException(nameof(cellSize));
+#endif
             _cellSize = cellSize;
         }
 
@@ -76,7 +80,11 @@ namespace ItemDrawers.Core
         /// <summary>Appends every item within <paramref name="radius"/>. Does not clear the list.</summary>
         public void Query(float x, float y, float z, float radius, List<T> results)
         {
+#if NET8_0_OR_GREATER
+            ArgumentNullException.ThrowIfNull(results);
+#else
             if (results == null) throw new ArgumentNullException(nameof(results));
+#endif
             if (radius <= 0f) return;
 
             // Symmetric and rounded up. A floor-based range is asymmetric and
@@ -88,20 +96,20 @@ namespace ItemDrawers.Core
             float r2 = radius * radius;
 
             for (int dx = -range; dx <= range; dx++)
-            for (int dy = -range; dy <= range; dy++)
-            for (int dz = -range; dz <= range; dz++)
-            {
-                var cell = new Cell(origin.X + dx, origin.Y + dy, origin.Z + dz);
-                if (!_cells.TryGetValue(cell, out var bucket)) continue;
+                for (int dy = -range; dy <= range; dy++)
+                    for (int dz = -range; dz <= range; dz++)
+                    {
+                        var cell = new Cell(origin.X + dx, origin.Y + dy, origin.Z + dz);
+                        if (!_cells.TryGetValue(cell, out var bucket)) continue;
 
-                for (int i = 0; i < bucket.Count; i++)
-                {
-                    var item = bucket[i];
-                    var p = _index[item];
-                    float ex = p.x - x, ey = p.y - y, ez = p.z - z;
-                    if (ex * ex + ey * ey + ez * ez <= r2) results.Add(item);
-                }
-            }
+                        for (int i = 0; i < bucket.Count; i++)
+                        {
+                            var item = bucket[i];
+                            var p = _index[item];
+                            float ex = p.x - x, ey = p.y - y, ez = p.z - z;
+                            if (ex * ex + ey * ey + ez * ez <= r2) results.Add(item);
+                        }
+                    }
         }
     }
 }

@@ -44,8 +44,9 @@ namespace ItemDrawers.Game
             var method = AccessTools.Method(typeof(Container), methodName);
             var info = method == null ? null : Harmony.GetPatchInfo(method);
             if (info == null) return false;
-            foreach (var prefix in info.Prefixes)
-                if (prefix.owner == DrawerPlugin.PluginGuid) return true;
+            var prefixes = info.Prefixes;
+            for (int i = 0; i < prefixes.Count; i++)
+                if (prefixes[i].owner == DrawerPlugin.PluginGuid) return true;
             return false;
         }
 

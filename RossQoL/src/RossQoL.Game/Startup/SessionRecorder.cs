@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using RossQoL.Core.Startup;
+using RossQoL.Game.Framework;
 
 namespace RossQoL.Game.Startup
 {
@@ -75,9 +76,9 @@ namespace RossQoL.Game.Startup
                 var session = Capture.CommitOnInitialSpawn(
                     hosting,
                     profile.GetFilename(),
-                    profile.m_fileSource.ToString(),
+                    EnumText.Name(profile.m_fileSource),
                     world?.m_name,
-                    world?.m_fileSource.ToString());
+                    world != null ? EnumText.Name(world.m_fileSource) : null);
 
                 if (session == null)
                 {

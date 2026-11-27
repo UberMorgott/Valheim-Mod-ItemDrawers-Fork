@@ -160,15 +160,18 @@ namespace ItemDrawers.Game
         private static void ResolveMatching<T>(
             PendingRequestLedger<T> ledger, ZDOID drawerId, Func<T, ZDOID> drawerOf, Action<long, T> onResolved)
         {
+            if (ledger.Count == 0) return;
+            var entries = new List<KeyValuePair<long, T>>(ledger.Count);
+            ledger.CopyAll(entries);
             List<long> matching = null;
-            foreach (var kv in ledger.All())
-                if (drawerOf(kv.Value).Equals(drawerId))
-                    (matching ?? (matching = new List<long>())).Add(kv.Key);
+            for (int i = 0; i < entries.Count; i++)
+                if (drawerOf(entries[i].Value).Equals(drawerId))
+                    (matching ?? (matching = new List<long>())).Add(entries[i].Key);
             if (matching == null) return;
 
-            foreach (var id in matching)
-                if (ledger.Remove(id, out var payload))
-                    onResolved(id, payload);
+            for (int i = 0; i < matching.Count; i++)
+                if (ledger.Remove(matching[i], out var payload))
+                    onResolved(matching[i], payload);
         }
 
         /// <summary>
@@ -203,14 +206,13 @@ namespace ItemDrawers.Game
         /// </summary>
         internal void DrainPendingDepositsBeforeSave()
         {
-            List<long> ids = null;
-            foreach (var kv in _pendingDeposits.All())
-                (ids ?? (ids = new List<long>())).Add(kv.Key);
-            if (ids == null) return;
+            if (_pendingDeposits.Count == 0) return;
+            var ids = new List<long>(_pendingDeposits.Count);
+            _pendingDeposits.CopyIds(ids);
 
-            foreach (var id in ids)
-                if (_pendingDeposits.Remove(id, out var payload))
-                    GiveUpDeposit(id, payload);
+            for (int i = 0; i < ids.Count; i++)
+                if (_pendingDeposits.Remove(ids[i], out var payload))
+                    GiveUpDeposit(ids[i], payload);
         }
 
         private void OnApplicationQuit() => DrainPendingDepositsBeforeSave();
@@ -548,7 +550,7 @@ namespace ItemDrawers.Game
             DrawerDiagnostics.RequestClosed(id);
 
             payload.Player?.Message(MessageHud.MessageType.Center, DrawerComponent.CommitFailedMessage);
-            if (payload.GivenUp != null) DrawerStore.ReplyLater(() => payload.GivenUp(id));
+            if (payload.GivenUp != null) DrawerStore.ReplyLater(payload.GivenUp, id);
         }
 
         /// <summary>

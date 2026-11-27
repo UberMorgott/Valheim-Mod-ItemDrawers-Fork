@@ -23,10 +23,12 @@ namespace RossQoL.Core.Tests
         public void Core_does_not_reference(string forbidden)
         {
             var core = typeof(FeatureRules).Assembly;
-            var referenced = core.GetReferencedAssemblies().Select(a => a.Name).ToArray();
+            var referenced = core.GetReferencedAssemblies();
 
-            Assert.DoesNotContain(referenced, name =>
-                name.StartsWith(forbidden, StringComparison.OrdinalIgnoreCase));
+            for (int i = 0; i < referenced.Length; i++)
+                Assert.False(
+                    referenced[i].Name.StartsWith(forbidden, StringComparison.OrdinalIgnoreCase),
+                    $"Core must not reference {referenced[i].Name}");
         }
     }
 }

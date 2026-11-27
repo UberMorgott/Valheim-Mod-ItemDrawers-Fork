@@ -51,12 +51,28 @@ namespace RossPortals.Core
             bool filtering = !string.IsNullOrEmpty(trimmedQuery);
 
             var filtered = new List<PortalEntry>();
-            foreach (var portal in portals)
+            if (portals is IReadOnlyList<PortalEntry> portalList)
             {
-                if (portal.Id == null) continue;
-                if (filtering && portal.Name.IndexOf(trimmedQuery, StringComparison.OrdinalIgnoreCase) < 0)
-                    continue;
-                filtered.Add(portal);
+                for (int i = 0; i < portalList.Count; i++)
+                {
+                    var portal = portalList[i];
+                    if (portal.Id == null) continue;
+                    if (filtering && portal.Name.IndexOf(trimmedQuery, StringComparison.OrdinalIgnoreCase) < 0)
+                        continue;
+                    filtered.Add(portal);
+                }
+            }
+            else
+            {
+                var copy = new List<PortalEntry>(portals);
+                for (int i = 0; i < copy.Count; i++)
+                {
+                    var portal = copy[i];
+                    if (portal.Id == null) continue;
+                    if (filtering && portal.Name.IndexOf(trimmedQuery, StringComparison.OrdinalIgnoreCase) < 0)
+                        continue;
+                    filtered.Add(portal);
+                }
             }
 
             var rows = new List<DisplayRow>();
@@ -67,8 +83,12 @@ namespace RossPortals.Core
             // its full name so it stays identifiable without its folder header.
             if (sort != SortMode.Name)
             {
-                foreach (var portal in SortLeaves(filtered, separator, sort, playerPosition, recentIndex))
+                var sorted = SortLeaves(filtered, separator, sort, playerPosition, recentIndex);
+                for (int i = 0; i < sorted.Count; i++)
+                {
+                    var portal = sorted[i];
                     rows.Add(DisplayRow.Portal(0, FlatLabel(portal), portal.Id, portal.Position.DistanceTo(playerPosition)));
+                }
                 return rows;
             }
 
@@ -98,11 +118,14 @@ namespace RossPortals.Core
             var groupPath = PortalName.GroupPath(portal.Name, separator);
 
             var node = root;
-            foreach (var segment in groupPath)
-                node = node.Child(segment, separator);
+            for (int i = 0; i < groupPath.Count; i++)
+                node = node.Child(groupPath[i], separator);
 
             node.Leaves.Add(portal);
         }
+
+        private static int CompareNodes(Node a, Node b) =>
+            StringComparer.OrdinalIgnoreCase.Compare(a.Segment, b.Segment);
 
         private static void Emit(Node node, int depth, List<DisplayRow> rows, char separator,
             SortMode sort, Vec3 player, Dictionary<string, int> recentIndex, HashSet<string> collapsed)
@@ -110,8 +133,11 @@ namespace RossPortals.Core
             // Folders first, alphabetical, then this folder's own portals.
             // Folders-before-portals keeps a folder's header visually attached
             // to its contents instead of stranded among loose portals.
-            foreach (var child in node.Children.Values.OrderBy(c => c.Segment, StringComparer.OrdinalIgnoreCase))
+            var children = new List<Node>(node.Children.Values);
+            children.Sort(CompareNodes);
+            for (int i = 0; i < children.Count; i++)
             {
+                var child = children[i];
                 bool isCollapsed = collapsed.Contains(child.Path);
                 rows.Add(DisplayRow.Group(depth, child.Segment, child.Path, isCollapsed, child.CountLeaves()));
 
@@ -119,8 +145,10 @@ namespace RossPortals.Core
                     Emit(child, depth + 1, rows, separator, sort, player, recentIndex, collapsed);
             }
 
-            foreach (var portal in SortLeaves(node.Leaves, separator, sort, player, recentIndex))
+            var sorted = SortLeaves(node.Leaves, separator, sort, player, recentIndex);
+            for (int i = 0; i < sorted.Count; i++)
             {
+                var portal = sorted[i];
                 rows.Add(DisplayRow.Portal(
                     depth,
                     PortalName.Leaf(portal.Name, separator),
@@ -129,35 +157,56 @@ namespace RossPortals.Core
             }
         }
 
-        private static IEnumerable<PortalEntry> SortLeaves(List<PortalEntry> leaves, char separator,
+        private sealed class LeafComparer : IComparer<PortalEntry>
+        {
+            private readonly char _separator;
+            private readonly SortMode _sort;
+            private readonly Vec3 _player;
+            private readonly Dictionary<string, int> _recentIndex;
+
+            public LeafComparer(char separator, SortMode sort, Vec3 player, Dictionary<string, int> recentIndex)
+            {
+                _separator = separator;
+                _sort = sort;
+                _player = player;
+                _recentIndex = recentIndex;
+            }
+
+            public int Compare(PortalEntry a, PortalEntry b)
+            {
+                int cmp;
+                if (_sort == SortMode.Nearest)
+                {
+                    cmp = a.Position.DistanceTo(_player).CompareTo(b.Position.DistanceTo(_player));
+                    if (cmp != 0) return cmp;
+                }
+                else if (_sort == SortMode.Recent)
+                {
+                    int ra = _recentIndex.TryGetValue(a.Id, out var ia) ? ia : int.MaxValue;
+                    int rb = _recentIndex.TryGetValue(b.Id, out var ib) ? ib : int.MaxValue;
+                    cmp = ra.CompareTo(rb);
+                    if (cmp != 0) return cmp;
+                }
+
+                cmp = StringComparer.OrdinalIgnoreCase.Compare(
+                    PortalName.Leaf(a.Name, _separator),
+                    PortalName.Leaf(b.Name, _separator));
+                if (cmp != 0) return cmp;
+
+                return StringComparer.Ordinal.Compare(a.Id, b.Id);
+            }
+        }
+
+        private static List<PortalEntry> SortLeaves(List<PortalEntry> leaves, char separator,
             SortMode sort, Vec3 player, Dictionary<string, int> recentIndex)
         {
             // Leaf label + Id as the final tiebreak everywhere, so ordering is
             // total and deterministic — two portals that tie on the primary key
             // (same distance, both unnamed, neither used) never swap around
             // between rebuilds.
-            string Label(PortalEntry p) => PortalName.Leaf(p.Name, separator);
-
-            switch (sort)
-            {
-                case SortMode.Nearest:
-                    return leaves
-                        .OrderBy(p => p.Position.DistanceTo(player))
-                        .ThenBy(Label, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(p => p.Id, StringComparer.Ordinal);
-
-                case SortMode.Recent:
-                    return leaves
-                        .OrderBy(p => recentIndex.TryGetValue(p.Id, out var i) ? i : int.MaxValue)
-                        .ThenBy(Label, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(p => p.Id, StringComparer.Ordinal);
-
-                case SortMode.Name:
-                default:
-                    return leaves
-                        .OrderBy(Label, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(p => p.Id, StringComparer.Ordinal);
-            }
+            var sorted = new List<PortalEntry>(leaves);
+            sorted.Sort(new LeafComparer(separator, sort, player, recentIndex));
+            return sorted;
         }
 
         /// <summary>Mutable folder tree, built once per <see cref="Build"/> call.</summary>

@@ -152,7 +152,7 @@ namespace ItemDrawers.Game
 
             _layout = IconAtlasPacker.PackFitting(sizes, out float scale);
             if (scale < 1f)
-                DrawerPlugin.Log.LogInfo($"{sizes.Count} drawer icons overflow the atlas at native size; packed at x{scale}.");
+                DrawerPlugin.Log.LogInfo($"{sizes.Count.ToString()} drawer icons overflow the atlas at native size; packed at x{scale.ToString()}.");
 
             _texture = new Texture2D(_layout.Width, _layout.Height, TextureFormat.RGBA32, mipChain: true)
             {
@@ -234,8 +234,8 @@ namespace ItemDrawers.Game
             // diagnosed (see TryReadSprite's docstring for the bug itself,
             // now fixed) -- removed now that it's confirmed fixed.
             DrawerPlugin.Log.LogInfo(
-                $"Icon atlas built: {_layout.Rects.Count} icons from {sheets} source sheet(s) in "
-                + $"{_layout.Width}x{_layout.Height}, {clock.ElapsedMilliseconds} ms, "
+                $"Icon atlas built: {_layout.Rects.Count.ToString()} icons from {sheets.ToString()} source sheet(s) in "
+                + $"{_layout.Width.ToString()}x{_layout.Height.ToString()}, {clock.ElapsedMilliseconds.ToString()} ms, "
                 + $"material shader = {shaderSource}");
 
             // One line, only when it applies. These items would previously
@@ -245,7 +245,7 @@ namespace ItemDrawers.Game
             if (variantFallbacks.Count > 0)
             {
                 DrawerPlugin.Log.LogInfo(
-                    $"{variantFallbacks.Count} item(s) have an icon variant outside their own icon array "
+                    $"{variantFallbacks.Count.ToString()} item(s) have an icon variant outside their own icon array "
                     + $"and use their first icon: {string.Join(", ", variantFallbacks)}.");
             }
         }
@@ -308,7 +308,7 @@ namespace ItemDrawers.Game
         /// per-sprite path remains for a device that reports none.
         /// </summary>
         private static bool CanCopyOnGpu() =>
-            (SystemInfo.copyTextureSupport & UnityEngine.Rendering.CopyTextureSupport.Basic) != 0;
+            (SystemInfo.copyTextureSupport & UnityEngine.Rendering.CopyTextureSupport.Basic) != UnityEngine.Rendering.CopyTextureSupport.None;
 
         /// <summary>
         /// Assembles the atlas on the GPU and reads it back once (issue #15).
@@ -329,12 +329,15 @@ namespace ItemDrawers.Game
         private static int CopyIconsOnGpu(Dictionary<string, Sprite> sprites)
         {
             var bySheet = new Dictionary<Texture, List<KeyValuePair<Sprite, AtlasRect>>>();
-            foreach (var pair in _layout.Rects)
+            if (_layout.Rects is Dictionary<string, AtlasRect> rects)
             {
-                if (!sprites.TryGetValue(pair.Key, out var sprite)) continue;
-                if (!bySheet.TryGetValue(sprite.texture, out var icons))
-                    bySheet[sprite.texture] = icons = new List<KeyValuePair<Sprite, AtlasRect>>();
-                icons.Add(new KeyValuePair<Sprite, AtlasRect>(sprite, pair.Value));
+                foreach (var pair in rects)
+                {
+                    if (!sprites.TryGetValue(pair.Key, out var sprite)) continue;
+                    if (!bySheet.TryGetValue(sprite.texture, out var icons))
+                        bySheet[sprite.texture] = icons = new List<KeyValuePair<Sprite, AtlasRect>>();
+                    icons.Add(new KeyValuePair<Sprite, AtlasRect>(sprite, pair.Value));
+                }
             }
 
             var previous = RenderTexture.active;
@@ -434,14 +437,17 @@ namespace ItemDrawers.Game
             _texture.SetPixels32(new Color32[_layout.Width * _layout.Height]);
 
             var sheets = new HashSet<Texture>();
-            foreach (var pair in _layout.Rects)
+            if (_layout.Rects is Dictionary<string, AtlasRect> rects)
             {
-                if (!sprites.TryGetValue(pair.Key, out var sprite)) continue;
-                sheets.Add(sprite.texture);
-                var dest = pair.Value;
-                if (!TryReadSprite(sprite, dest.Width, dest.Height, out var pixels)) continue;
+                foreach (var pair in rects)
+                {
+                    if (!sprites.TryGetValue(pair.Key, out var sprite)) continue;
+                    sheets.Add(sprite.texture);
+                    var dest = pair.Value;
+                    if (!TryReadSprite(sprite, dest.Width, dest.Height, out var pixels)) continue;
 
-                _texture.SetPixels32(dest.X, dest.Y, dest.Width, dest.Height, pixels);
+                    _texture.SetPixels32(dest.X, dest.Y, dest.Width, dest.Height, pixels);
+                }
             }
 
             return sheets.Count;

@@ -181,7 +181,7 @@ namespace RossQoL.Game.Progression
                 site = new DungeonSite(
                     FlagNames.Of(location.m_biome),
                     themes,
-                    Heightmap.FindBiome(location.transform.position).ToString(),
+                    RossQoL.Game.Framework.EnumText.Name(Heightmap.FindBiome(location.transform.position)),
                     location.gameObject.name);
                 return true;
             }
@@ -194,7 +194,7 @@ namespace RossQoL.Game.Progression
             site = new DungeonSite(
                 FlagNames.Of(instance.m_location.m_biome),
                 themes,
-                Heightmap.FindBiome(instance.m_position).ToString(),
+                RossQoL.Game.Framework.EnumText.Name(Heightmap.FindBiome(instance.m_position)),
                 instance.m_location.m_prefabName);
             return true;
         }
@@ -210,23 +210,46 @@ namespace RossQoL.Game.Progression
     /// </summary>
     internal static class FlagNames
     {
-        public static string Of(Enum flags)
-        {
-            if (flags == null) return "";
+        private static readonly (long Bit, string Name)[] BiomeBits = BuildBits((Heightmap.Biome[])Enum.GetValues(typeof(Heightmap.Biome)), Enum.GetNames(typeof(Heightmap.Biome)));
+        private static readonly (long Bit, string Name)[] ThemeBits = BuildBits((Room.Theme[])Enum.GetValues(typeof(Room.Theme)), Enum.GetNames(typeof(Room.Theme)));
 
-            var type = flags.GetType();
-            long bits = Convert.ToInt64(flags);
+        private static (long Bit, string Name)[] BuildBits(Heightmap.Biome[] values, string[] names)
+        {
+            var list = new List<(long, string)>();
+            for (int i = 0; i < values.Length && i < names.Length; i++)
+            {
+                long bit = (long)values[i];
+                if (bit != 0L && (bit & (bit - 1L)) == 0L && !string.IsNullOrEmpty(names[i]))
+                    list.Add((bit, names[i]));
+            }
+            return list.ToArray();
+        }
+
+        private static (long Bit, string Name)[] BuildBits(Room.Theme[] values, string[] names)
+        {
+            var list = new List<(long, string)>();
+            for (int i = 0; i < values.Length && i < names.Length; i++)
+            {
+                long bit = (long)values[i];
+                if (bit != 0L && (bit & (bit - 1L)) == 0L && !string.IsNullOrEmpty(names[i]))
+                    list.Add((bit, names[i]));
+            }
+            return list.ToArray();
+        }
+
+        public static string Of(Heightmap.Biome flags) => FormatBits((long)flags, BiomeBits);
+
+        public static string Of(Room.Theme flags) => FormatBits((long)flags, ThemeBits);
+
+        private static string FormatBits(long bits, (long Bit, string Name)[] table)
+        {
             if (bits == 0L) return "";
 
             var names = new List<string>();
-            foreach (var value in Enum.GetValues(type))
+            for (int i = 0; i < table.Length; i++)
             {
-                long bit = Convert.ToInt64(value);
-                if (bit == 0L || (bit & (bit - 1L)) != 0L) continue;
-                if ((bits & bit) != bit) continue;
-
-                string name = Enum.GetName(type, value);
-                if (!string.IsNullOrEmpty(name)) names.Add(name);
+                if ((bits & table[i].Bit) == table[i].Bit)
+                    names.Add(table[i].Name);
             }
 
             return string.Join(", ", names.ToArray());

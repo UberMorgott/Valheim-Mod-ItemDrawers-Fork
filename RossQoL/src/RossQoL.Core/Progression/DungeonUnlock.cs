@@ -126,8 +126,8 @@ namespace RossQoL.Core.Progression
             var keys = RequiredKeys(biomeNames, themeNames);
             if (keys == null || keys.Count == 0) return false;
 
-            foreach (string key in keys)
-                if (!isKeySet(key)) return false;
+            for (int i = 0; i < keys.Count; i++)
+                if (!isKeySet(keys[i])) return false;
 
             return true;
         }

@@ -1,8 +1,8 @@
 using System;
-using RossQoL.Core.Interface;
+using RossQoL.Core.UserInterface;
 using Xunit;
 
-namespace RossQoL.Core.Tests.Interface
+namespace RossQoL.Core.Tests.UserInterface
 {
     public class ProductionTimerTests
     {

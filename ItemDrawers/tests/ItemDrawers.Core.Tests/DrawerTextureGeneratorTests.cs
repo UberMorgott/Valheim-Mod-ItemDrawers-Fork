@@ -306,7 +306,7 @@ namespace ItemDrawers.Core.Tests
                 case TextureTier.Wood: return 0.44;
                 case TextureTier.Stone: return 0.04;
                 case TextureTier.BlackMarble: return 0.18;
-                default: throw new ArgumentOutOfRangeException(nameof(tier), tier, null);
+                default: throw new ArgumentOutOfRangeException(nameof(tier));
             }
         }
 
@@ -331,7 +331,7 @@ namespace ItemDrawers.Core.Tests
                 case TextureTier.Wood: return 0.14;
                 case TextureTier.Stone: return 0.11;
                 case TextureTier.BlackMarble: return 0.10;
-                default: throw new ArgumentOutOfRangeException(nameof(tier), tier, null);
+                default: throw new ArgumentOutOfRangeException(nameof(tier));
             }
         }
 

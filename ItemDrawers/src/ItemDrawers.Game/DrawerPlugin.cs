@@ -189,168 +189,221 @@ namespace ItemDrawers.Game
         /// rather than startup logging -- two hypotheses died for want of
         /// exactly these numbers.
         /// </summary>
+        private static readonly Dictionary<Piece.PieceCategory, string> CategoryNames = BuildCategoryNames();
+        private static readonly (int Bit, string Name)[] UsageFlagNames = BuildUsageFlagNames();
+
+        private static Dictionary<Piece.PieceCategory, string> BuildCategoryNames()
+        {
+            var values = (Piece.PieceCategory[])Enum.GetValues(typeof(Piece.PieceCategory));
+            var names = Enum.GetNames(typeof(Piece.PieceCategory));
+            var map = new Dictionary<Piece.PieceCategory, string>(values.Length);
+            for (int i = 0; i < values.Length && i < names.Length; i++)
+                map[values[i]] = names[i];
+            return map;
+        }
+
+        private static (int Bit, string Name)[] BuildUsageFlagNames()
+        {
+            var values = (Piece.UsageTagFlags[])Enum.GetValues(typeof(Piece.UsageTagFlags));
+            var names = Enum.GetNames(typeof(Piece.UsageTagFlags));
+            var list = new List<(int, string)>(values.Length);
+            for (int i = 0; i < values.Length && i < names.Length; i++)
+                list.Add(((int)values[i], names[i]));
+            return list.ToArray();
+        }
+
+        private static string FormatCategory(Piece.PieceCategory category) =>
+            CategoryNames.TryGetValue(category, out var label) ? label : ((int)category).ToString();
+
+        private static string FormatUsage(Piece.UsageTagFlags usage)
+        {
+            int raw = (int)usage;
+            if (raw == 0) return "None";
+            var parts = new List<string>();
+            for (int i = 0; i < UsageFlagNames.Length; i++)
+            {
+                int bit = UsageFlagNames[i].Bit;
+                if (bit != 0 && (raw & bit) == bit)
+                    parts.Add(UsageFlagNames[i].Name);
+            }
+            return parts.Count > 0 ? string.Join(", ", parts) : raw.ToString();
+        }
+
+        private static void DiagSay(Terminal.ConsoleEventArgs args, string s)
+        {
+            args.Context.AddString(s);
+            Log.LogInfo("rid_diag: " + s);
+        }
+
+        private static Terminal.ConsoleCommand _diagCommand;
+
         private static void RegisterDiagCommand()
         {
-            new Terminal.ConsoleCommand("rid_diag", "report ItemDrawers drawer piece state", args =>
+            _diagCommand = new Terminal.ConsoleCommand("rid_diag", "report ItemDrawers drawer piece state", RunDiagCommand);
+        }
+
+        private static void RunDiagCommand(Terminal.ConsoleEventArgs args)
+        {
+            foreach (var tier in DrawerTiers.All)
             {
-                void Say(string s) { args.Context.AddString(s); Log.LogInfo("rid_diag: " + s); }
+                var prefabName = DrawerTiers.PrefabName(tier);
+                DiagSay(args, $"--- {prefabName} ---");
 
-                foreach (var tier in DrawerTiers.All)
+                var prefab = PrefabManager.Instance.GetPrefab(prefabName);
+                var piece = prefab == null ? null : prefab.GetComponent<Piece>();
+                if (piece == null) { DiagSay(args, "prefab or Piece MISSING"); continue; }
+
+                DiagSay(args, $"m_enabled={piece.m_enabled.ToString()}  m_category={FormatCategory(piece.m_category)}  m_name='{piece.m_name}'  m_icon={(piece.m_icon == null ? "NULL" : piece.m_icon.name)}");
+                DiagSay(args, $"m_usage={FormatUsage(piece.m_usage)}  (this is what 1.0's build-menu tabs filter on)");
+                DiagSay(args, $"m_craftingStation={(piece.m_craftingStation == null ? "none" : piece.m_craftingStation.m_name)}");
+
+                var reqs = piece.m_resources;
+                DiagSay(args, $"requirements={(reqs == null ? 0 : reqs.Length).ToString()}");
+                if (reqs != null)
+                    foreach (var r in reqs)
+                        DiagSay(args, $"   res={(r.m_resItem == null ? "UNRESOLVED" : r.m_resItem.m_itemData.m_shared.m_name)} x{r.m_amount.ToString()}");
+
+                var player = Player.m_localPlayer;
+                if (player == null) { DiagSay(args, "no local player"); continue; }
+
+                DiagSay(args, $"IsRecipeKnown('{piece.m_name}')={player.IsRecipeKnown(piece.m_name).ToString()}");
+                DiagSay(args, $"HaveRequirements(IsKnown)={player.HaveRequirements(piece, Player.RequirementMode.IsKnown).ToString()}");
+
+                // HaveRequirements(IsKnown) returns false on an unknown
+                // crafting station BEFORE it looks at materials, so a
+                // false here reads as "missing materials" when the real
+                // cause is that the player has never stood near a
+                // workbench. Stations become known via AddKnownStation,
+                // which fires on proximity to a built one -- knowing the
+                // recipe is not enough. Report it rather than deduce it.
+                if (piece.m_craftingStation != null)
                 {
-                    var name = DrawerTiers.PrefabName(tier);
-                    Say($"--- {name} ---");
+                    bool stationKnown = player.m_knownStations.ContainsKey(piece.m_craftingStation.m_name);
+                    bool stationInRange = CraftingStation.HaveBuildStationInRange(
+                        piece.m_craftingStation.m_name, player.transform.position);
+                    DiagSay(args, $"station '{piece.m_craftingStation.m_name}': known={stationKnown.ToString()} inRange={stationInRange.ToString()}"
+                        + (stationKnown ? "" : "  <-- BLOCKS IsKnown; build a workbench and stand near it"));
+                }
+                DiagSay(args, $"HaveRequirements(CanBuild)={player.HaveRequirements(piece, Player.RequirementMode.CanBuild).ToString()}");
 
-                    var prefab = PrefabManager.Instance.GetPrefab(name);
-                    var piece = prefab == null ? null : prefab.GetComponent<Piece>();
-                    if (piece == null) { Say("prefab or Piece MISSING"); continue; }
+                // The table the PLAYER builds from is the one that matters.
+                // Everything measured so far came from PieceManager's table,
+                // which may be a different instance entirely.
+                var jotunnTable = PieceManager.Instance.GetPieceTable(PieceTables.Hammer);
+                var playerTable = player.m_buildPieces;
 
-                    Say($"m_enabled={piece.m_enabled}  m_category={piece.m_category}  m_name='{piece.m_name}'  m_icon={(piece.m_icon == null ? "NULL" : piece.m_icon.name)}");
-                    Say($"m_usage={piece.m_usage}  (this is what 1.0's build-menu tabs filter on)");
-                    Say($"m_craftingStation={(piece.m_craftingStation == null ? "none" : piece.m_craftingStation.m_name)}");
+                DiagSay(args, $"jotunnTable={(jotunnTable == null ? "null" : jotunnTable.name)}  "
+                    + $"playerTable={(playerTable == null ? "null" : playerTable.name)}  "
+                    + $"SAME INSTANCE={ReferenceEquals(jotunnTable, playerTable).ToString()}");
 
-                    var reqs = piece.m_resources;
-                    Say($"requirements={(reqs == null ? 0 : reqs.Length)}");
-                    if (reqs != null)
-                        foreach (var r in reqs)
-                            Say($"   res={(r.m_resItem == null ? "UNRESOLVED" : r.m_resItem.m_itemData.m_shared.m_name)} x{r.m_amount}");
+                if (playerTable == null) { DiagSay(args, "player has no build table equipped"); continue; }
 
-                    var player = Player.m_localPlayer;
-                    if (player == null) { Say("no local player"); continue; }
+                DiagSay(args, $"[player table] in m_pieces={playerTable.m_pieces.Contains(prefab).ToString()}  "
+                    + $"in m_enabledPieces={playerTable.m_enabledPieces.Contains(piece).ToString()}  "
+                    + $"in m_availablePieces={playerTable.m_availablePieces.Contains(piece).ToString()}");
+            }
 
-                    Say($"IsRecipeKnown('{piece.m_name}')={player.IsRecipeKnown(piece.m_name)}");
-                    Say($"HaveRequirements(IsKnown)={player.HaveRequirements(piece, Player.RequirementMode.IsKnown)}");
+            var localPlayer = Player.m_localPlayer;
+            var buildTable = localPlayer == null ? null : localPlayer.m_buildPieces;
+            if (buildTable == null) { DiagSay(args, "no player / no build table for category dump"); }
+            else
+            {
+                var catLabels = new List<string>(buildTable.m_categories.Count);
+                for (int c = 0; c < buildTable.m_categories.Count; c++)
+                    catLabels.Add(FormatCategory(buildTable.m_categories[c]));
+                DiagSay(args, $"[player table] selectedCategory={FormatCategory(buildTable.GetSelectedCategory())}  "
+                    + $"categories=[{string.Join(", ", catLabels)}]");
 
-                    // HaveRequirements(IsKnown) returns false on an unknown
-                    // crafting station BEFORE it looks at materials, so a
-                    // false here reads as "missing materials" when the real
-                    // cause is that the player has never stood near a
-                    // workbench. Stations become known via AddKnownStation,
-                    // which fires on proximity to a built one -- knowing the
-                    // recipe is not enough. Report it rather than deduce it.
-                    if (piece.m_craftingStation != null)
+                for (int i = 0; i < buildTable.m_availablePiecesByCategory.Count; i++)
+                {
+                    var bucket = buildTable.m_availablePiecesByCategory[i];
+                    if (bucket.Count == 0) continue;
+                    var names = new List<string>(bucket.Count);
+                    for (int j = 0; j < bucket.Count; j++)
+                        names.Add(bucket[j] == null ? "<null>" : bucket[j].m_name);
+                    DiagSay(args, $"[player table] bucket {i.ToString()} ({FormatCategory((Piece.PieceCategory)i)}) x{bucket.Count.ToString()}: {string.Join(" | ", names)}");
+                }
+            }
+
+            // ---------- Container bridge diagnostics ----------
+            // Answers "does GetInventory() actually work on a live
+            // drawer" directly, rather than inferring it from whether
+            // OttoFuel/NVLB happen to react. Deliberately goes through
+            // the Container-typed reference (`asContainer.GetInventory()`),
+            // never DrawerComponent.View directly -- the
+            // whole point is to exercise ContainerBridge's Harmony
+            // patch on Container.GetInventory the same way any other
+            // mod's call would, so a patch that failed to apply shows
+            // up here as GetInventory() returning null, not as this
+            // command silently reading the view around the patch.
+            DiagSay(args, "--- Container bridge (nearby drawers) ---");
+            if (localPlayer == null || DrawerManager.Instance == null)
+            {
+                DiagSay(args, "no local player or DrawerManager -- cannot enumerate nearby drawers");
+            }
+            else
+            {
+                var nearby = new System.Collections.Generic.List<DrawerComponent>();
+                DrawerManager.Instance.QueryNear(localPlayer.transform.position, 20f, nearby);
+                DiagSay(args, $"drawers within 20m of player: {nearby.Count.ToString()}  (DrawerComponent.All total: {DrawerComponent.All.Count.ToString()})");
+
+                foreach (var d in nearby)
+                {
+                    bool inAll = DrawerComponent.All.Contains(d);
+
+                    Container asContainer = d;
+                    Inventory inv = asContainer.GetInventory();
+
+                    string invDesc;
+                    if (inv == null)
                     {
-                        bool stationKnown = player.m_knownStations.ContainsKey(piece.m_craftingStation.m_name);
-                        bool stationInRange = CraftingStation.HaveBuildStationInRange(
-                            piece.m_craftingStation.m_name, player.transform.position);
-                        Say($"station '{piece.m_craftingStation.m_name}': known={stationKnown} inRange={stationInRange}"
-                            + (stationKnown ? "" : "  <-- BLOCKS IsKnown; build a workbench and stand near it"));
+                        // A null result is only the patch's fault when
+                        // the drawer actually has a view to return.
+                        invDesc = !InventoryAccess.Available
+                            ? "GetInventory()=NULL (InventoryAccess unavailable: no container view on this game version)"
+                            : d.View == null
+                                ? "GetInventory()=NULL (this drawer has no view: Awake did not finish)"
+                                : "GetInventory()=NULL <-- ContainerBridge's GetInventory patch is not applying";
                     }
-                    Say($"HaveRequirements(CanBuild)={player.HaveRequirements(piece, Player.RequirementMode.CanBuild)}");
-
-                    // The table the PLAYER builds from is the one that matters.
-                    // Everything measured so far came from PieceManager's table,
-                    // which may be a different instance entirely.
-                    var jotunnTable = PieceManager.Instance.GetPieceTable(PieceTables.Hammer);
-                    var playerTable = player.m_buildPieces;
-
-                    Say($"jotunnTable={(jotunnTable == null ? "null" : jotunnTable.name)}  "
-                        + $"playerTable={(playerTable == null ? "null" : playerTable.name)}  "
-                        + $"SAME INSTANCE={ReferenceEquals(jotunnTable, playerTable)}");
-
-                    if (playerTable == null) { Say("player has no build table equipped"); continue; }
-
-                    Say($"[player table] in m_pieces={playerTable.m_pieces.Contains(prefab)}  "
-                        + $"in m_enabledPieces={playerTable.m_enabledPieces.Contains(piece)}  "
-                        + $"in m_availablePieces={playerTable.m_availablePieces.Contains(piece)}");
-                }
-
-                var localPlayer = Player.m_localPlayer;
-                var buildTable = localPlayer == null ? null : localPlayer.m_buildPieces;
-                if (buildTable == null) { Say("no player / no build table for category dump"); }
-                else
-                {
-                    Say($"[player table] selectedCategory={buildTable.GetSelectedCategory()}  "
-                        + $"categories=[{string.Join(", ", buildTable.m_categories)}]");
-
-                    for (int i = 0; i < buildTable.m_availablePiecesByCategory.Count; i++)
+                    else
                     {
-                        var bucket = buildTable.m_availablePiecesByCategory[i];
-                        if (bucket.Count == 0) continue;
-                        var names = bucket.ConvertAll(p => p == null ? "<null>" : p.m_name);
-                        Say($"[player table] bucket {i} ({(Piece.PieceCategory)i}) x{bucket.Count}: {string.Join(" | ", names)}");
+                        int viewTotal = 0;
+                        foreach (var item in inv.GetAllItems()) viewTotal += item.m_stack;
+                        invDesc = $"GetInventory()=non-null, {(inv.GetWidth() * inv.GetHeight()).ToString()} slot(s), "
+                                  + $"{inv.NrOfItems().ToString()} stack(s), total={viewTotal.ToString()}";
                     }
-                }
 
-                // ---------- Container bridge diagnostics ----------
-                // Answers "does GetInventory() actually work on a live
-                // drawer" directly, rather than inferring it from whether
-                // OttoFuel/NVLB happen to react. Deliberately goes through
-                // the Container-typed reference (`asContainer.GetInventory()`),
-                // never DrawerComponent.View directly -- the
-                // whole point is to exercise ContainerBridge's Harmony
-                // patch on Container.GetInventory the same way any other
-                // mod's call would, so a patch that failed to apply shows
-                // up here as GetInventory() returning null, not as this
-                // command silently reading the view around the patch.
-                Say("--- Container bridge (nearby drawers) ---");
-                if (localPlayer == null || DrawerManager.Instance == null)
-                {
-                    Say("no local player or DrawerManager -- cannot enumerate nearby drawers");
-                }
-                else
-                {
-                    var nearby = new System.Collections.Generic.List<DrawerComponent>();
-                    DrawerManager.Instance.QueryNear(localPlayer.transform.position, 20f, nearby);
-                    Say($"drawers within 20m of player: {nearby.Count}  (DrawerComponent.All total: {DrawerComponent.All.Count})");
+                    var zdo = d.Snapshot;
 
-                    foreach (var d in nearby)
+                    // m_persistent and the ZDO's creator both matter for
+                    // a drawer to survive a reload and be found by a
+                    // container-aware mod -- worth surfacing on demand
+                    // here rather than only in the source comments.
+                    string persistentDesc = "unknown", creatorDesc = "unknown";
+                    try
                     {
-                        bool inAll = DrawerComponent.All.Contains(d);
-
-                        Container asContainer = d;
-                        Inventory inv = asContainer.GetInventory();
-
-                        string invDesc;
-                        if (inv == null)
+                        var nview = AccessTools.FieldRefAccess<Container, ZNetView>(d, "m_nview");
+                        if (nview != null)
                         {
-                            // A null result is only the patch's fault when
-                            // the drawer actually has a view to return.
-                            invDesc = !InventoryAccess.Available
-                                ? "GetInventory()=NULL (InventoryAccess unavailable: no container view on this game version)"
-                                : d.View == null
-                                    ? "GetInventory()=NULL (this drawer has no view: Awake did not finish)"
-                                    : "GetInventory()=NULL <-- ContainerBridge's GetInventory patch is not applying";
+                            persistentDesc = nview.m_persistent.ToString();
+                            var nviewZdo = nview.GetZDO();
+                            creatorDesc = nviewZdo != null
+                                ? nviewZdo.GetLong("creator".GetStableHashCode(), 0L).ToString()
+                                : "no ZDO";
                         }
-                        else
-                        {
-                            int viewTotal = 0;
-                            foreach (var item in inv.GetAllItems()) viewTotal += item.m_stack;
-                            invDesc = $"GetInventory()=non-null, {inv.GetWidth() * inv.GetHeight()} slot(s), "
-                                      + $"{inv.NrOfItems()} stack(s), total={viewTotal}";
-                        }
-
-                        var zdo = d.Snapshot;
-
-                        // m_persistent and the ZDO's creator both matter for
-                        // a drawer to survive a reload and be found by a
-                        // container-aware mod -- worth surfacing on demand
-                        // here rather than only in the source comments.
-                        string persistentDesc = "unknown", creatorDesc = "unknown";
-                        try
-                        {
-                            var nview = AccessTools.FieldRefAccess<Container, ZNetView>(d, "m_nview");
-                            if (nview != null)
-                            {
-                                persistentDesc = nview.m_persistent.ToString();
-                                var nviewZdo = nview.GetZDO();
-                                creatorDesc = nviewZdo != null
-                                    ? nviewZdo.GetLong("creator".GetStableHashCode(), 0L).ToString()
-                                    : "no ZDO";
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.LogWarning($"rid_diag: could not read m_nview/creator for '{d.DiagId}': {ex}");
-                        }
-
-                        Say($"{d.DiagId}: {invDesc}; "
-                            + $"view=({d.ViewDiag}); "
-                            + $"ZDO=('{zdo.ItemName}',{zdo.Amount}); "
-                            + $"m_persistent={persistentDesc}; creator={creatorDesc}; "
-                            + $"inAll={inAll}");
                     }
+                    catch (Exception ex)
+                    {
+                        Log.LogWarning($"rid_diag: could not read m_nview/creator for '{d.DiagId}': {ex}");
+                    }
+
+                    DiagSay(args, $"{d.DiagId}: {invDesc}; "
+                        + $"view=({d.ViewDiag}); "
+                        + $"ZDO=('{zdo.ItemName}',{zdo.Amount.ToString()}); "
+                        + $"m_persistent={persistentDesc}; creator={creatorDesc}; "
+                        + $"inAll={inAll.ToString()}");
                 }
-            });
+            }
         }
     }
 }

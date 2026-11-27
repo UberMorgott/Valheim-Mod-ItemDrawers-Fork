@@ -1,6 +1,6 @@
 using System;
 
-namespace RossQoL.Core.Interface
+namespace RossQoL.Core.UserInterface
 {
     /// <summary>
     /// The clock's text. Valheim's day fraction runs 0 at midnight, 0.25 at
@@ -28,10 +28,10 @@ namespace RossQoL.Core.Interface
             int hour = minutes / 60;
             int minute = minutes % 60;
 
-            if (use24Hour) return $"{hour:00}:{minute:00}";
+            if (use24Hour) return $"{hour.ToString("00")}:{minute.ToString("00")}";
 
             int hour12 = hour % 12 == 0 ? 12 : hour % 12;
-            return $"{hour12}:{minute:00} {(hour < 12 ? "AM" : "PM")}";
+            return $"{hour12.ToString()}:{minute.ToString("00")} {(hour < 12 ? "AM" : "PM")}";
         }
     }
 }

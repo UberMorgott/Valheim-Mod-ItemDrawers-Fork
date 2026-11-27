@@ -64,8 +64,9 @@ namespace RossQoL.Core.Production
             int unit = Math.Max(1, unitSize);
             int remaining = amount - amount % unit;
 
-            foreach (var candidate in ranked)
+            for (int i = 0; i < ranked.Count; i++)
             {
+                var candidate = ranked[i];
                 if (remaining <= 0) break;
 
                 int fits = Math.Min(remaining, candidate.Room);

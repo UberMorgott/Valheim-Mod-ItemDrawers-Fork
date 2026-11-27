@@ -36,9 +36,14 @@ namespace ItemDrawers.Core
             if (!spec.Ok) return (fallback, spec.Error);
 
             if (isKnownItem != null)
-                foreach (var r in spec.Requirements)
+            {
+                for (int i = 0; i < spec.Requirements.Count; i++)
+                {
+                    var r = spec.Requirements[i];
                     if (!isKnownItem(r.Item))
                         return (fallback, $"no item named '{r.Item}'");
+                }
+            }
 
             return (spec.Requirements, null);
         }

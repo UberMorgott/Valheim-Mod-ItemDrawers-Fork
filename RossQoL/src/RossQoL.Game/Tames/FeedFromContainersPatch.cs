@@ -104,7 +104,7 @@ namespace RossQoL.Game.Tames
             if (taken != 1)
             {
                 if (taken > 1)
-                    RossQoLPlugin.Log.LogWarning($"FeedFromContainers: {taken} {name} left a container for one feeding.");
+                    RossQoLPlugin.Log.LogWarning($"FeedFromContainers: {taken.ToString()} {name} left a container for one feeding.");
                 if (taken <= 0) return;
             }
 
