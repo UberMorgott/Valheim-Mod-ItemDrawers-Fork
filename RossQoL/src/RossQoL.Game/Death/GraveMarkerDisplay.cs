@@ -19,6 +19,10 @@ namespace RossQoL.Game.Death
     /// them is silently bypassed. Update always runs, so this is the one
     /// place that reliably sees every key press.
     /// </summary>
+    // LateUpdate must run after GameCamera.LateUpdate (order 0) so
+    // WorldToScreenPointScaled uses the rotated camera of the current frame
+    // instead of lagging 1 frame behind camera pan.
+    [DefaultExecutionOrder(1000)]
     internal sealed class GraveMarkerDisplay : MonoBehaviour
     {
         private const float RefreshSeconds = 0.25f;
@@ -27,6 +31,7 @@ namespace RossQoL.Game.Death
         private TMP_Text _distance;
         private TMP_Text _hint;
         private float _nextRefresh;
+        private bool _refreshDistance;
 
         /// <summary>Time.unscaledTime the clear key started being held; negative while not held.</summary>
         private float _clearHoldStart = -1f;
@@ -63,7 +68,7 @@ namespace RossQoL.Game.Death
             // the rest of the session, silently freezing the marker in place.
             try
             {
-                Tick();
+                TickInput();
             }
             catch (Exception ex)
             {
@@ -71,7 +76,19 @@ namespace RossQoL.Game.Death
             }
         }
 
-        private void Tick()
+        private void LateUpdate()
+        {
+            try
+            {
+                Project();
+            }
+            catch (Exception ex)
+            {
+                RossQoLPlugin.Log.LogError($"Death: grave marker projection failed: {ex}");
+            }
+        }
+
+        private void TickInput()
         {
             if (_glyph == null || _distance == null || _hint == null) return;
 
@@ -79,20 +96,32 @@ namespace RossQoL.Game.Death
             if (!active)
             {
                 _cachedGrave = null;
+                _clearHoldStart = -1f;
                 SetVisible(false);
                 return;
             }
 
-            bool dueForRefresh = Time.unscaledTime >= _nextRefresh;
-            if (dueForRefresh)
+            if (Time.unscaledTime >= _nextRefresh)
             {
                 _nextRefresh = Time.unscaledTime + RefreshSeconds;
                 var graves = DeathState.Graves();
                 _cachedGrave = DeathState.Selected;
                 _hint.text = BuildHintText(graves.Count);
+                _refreshDistance = true;
             }
 
             var grave = _cachedGrave;
+            if (grave == null) { SetVisible(false); return; }
+
+            HandleKeys(grave.Value);
+        }
+
+        private void Project()
+        {
+            if (_glyph == null || _distance == null || _hint == null) return;
+
+            bool active = GraveMarkerFeature.Instance?.IsActive == true && Player.m_localPlayer != null;
+            var grave = active ? _cachedGrave : null;
             if (grave == null) { SetVisible(false); return; }
 
             var camera = Utils.GetMainCamera();
@@ -105,8 +134,6 @@ namespace RossQoL.Game.Death
             var playerAt = Player.m_localPlayer.transform.position;
             var target = GraveAimPoint.For(grave.Value, playerAt);
             float distance = Vector3.Distance(playerAt, target);
-
-            HandleKeys(grave.Value);
 
             if (distance <= DeathConfig.HideDistance.Value) { SetVisible(false); return; }
 
@@ -123,7 +150,11 @@ namespace RossQoL.Game.Death
             _glyph.rectTransform.rotation = Quaternion.Euler(0f, 0f, -placement.AngleDegrees);
             _glyph.text = placement.OnScreen ? "▼" : "▲";
 
-            if (dueForRefresh) _distance.text = $"{Mathf.RoundToInt(distance).ToString()}m";
+            if (_refreshDistance)
+            {
+                _distance.text = $"{Mathf.RoundToInt(distance).ToString()}m";
+                _refreshDistance = false;
+            }
         }
 
         /// <summary>
