@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.7
+
+- Major base FPS optimization for large drawer walls:
+  - Share a single TextMeshPro material across all drawer count labels instead of instantiating one per drawer.
+  - Fully deactivate hidden count label GameObjects when culled by distance or facing away from the camera.
+  - Index drawers by assigned item for O(1) auto-pickup lookups instead of scanning a 40 m spatial grid per drop.
+  - Merge per-frame drawer view/face ticks into one revision-gated pass that skips idle drawers.
+
 ## 1.4.6
 
 - Morgott.Core 0.30.0 IDrawerDeposit: automation (station queues) deposits into a drawer on the

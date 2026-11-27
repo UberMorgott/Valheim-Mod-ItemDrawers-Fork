@@ -13,8 +13,51 @@ namespace ItemDrawers.Game
     /// </summary>
     internal static class DrawerFont
     {
+        private const float CountOutlineWidth = 0.18f;
+        private const float CountFaceDilate = 0.15f;
+        private const int CountRenderQueue = 2451;
+        private static readonly Color32 CountOutlineColor = new Color32(12, 9, 6, 235);
+
         private static TMP_FontAsset _cached;
+        private static Material _sharedCountMaterial;
+        private static Material _sharedCountMaterialBase;
         private static bool _loggedFailure;
+
+        /// <summary>
+        /// Single shared TMP material for every drawer count label. Mutating
+        /// <c>outlineWidth</c>, <c>outlineColor</c>, or <c>fontMaterial</c> per
+        /// drawer clones a unique Material instance per drawer and breaks
+        /// batching into N SetPass/DrawCalls. Caching one configured clone
+        /// keyed on <c>font.material</c> keeps every drawer on one shared
+        /// material without altering Valheim's own HUD font material, and
+        /// rebuilds safely if Unity destroys either material across unloads.
+        /// </summary>
+        public static Material SharedCountMaterial(TMP_FontAsset font)
+        {
+            if (font == null) return null;
+            var baseMat = font.material;
+            if (baseMat == null) return null;
+
+            if (_sharedCountMaterial != null && _sharedCountMaterialBase == baseMat)
+                return _sharedCountMaterial;
+
+            var mat = new Material(baseMat)
+            {
+                name = "rid_count_shared_mat",
+                shaderKeywords = baseMat.shaderKeywords,
+                renderQueue = CountRenderQueue,
+                hideFlags = HideFlags.DontUnloadUnusedAsset,
+            };
+            mat.EnableKeyword(ShaderUtilities.Keyword_Outline);
+            mat.SetFloat(ShaderUtilities.ID_OutlineWidth, CountOutlineWidth);
+            mat.SetColor(ShaderUtilities.ID_OutlineColor, CountOutlineColor);
+            mat.SetFloat(ShaderUtilities.ID_FaceDilate, CountFaceDilate);
+            ShaderUtilities.UpdateShaderRatios(mat);
+
+            _sharedCountMaterial = mat;
+            _sharedCountMaterialBase = baseMat;
+            return _sharedCountMaterial;
+        }
 
         /// <summary>
         /// Null if no TMP font could be found anywhere -- logs an error

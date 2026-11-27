@@ -88,8 +88,12 @@ namespace ItemDrawers.Game
         private readonly Vector3[] _corners = new Vector3[4];
         private readonly Vector2[] _uvs = new Vector2[4];
 
+        private MeshRenderer _countRenderer;
         private string _shownItem;
         private int _shownAmount = -1;
+        private int _displayedAmount = -1;
+        private bool _hasIcon;
+        private bool _labelVisible = true;
 
         // Set once TryConfigureCountText actually configures and activates
         // the count text (i.e. a font was found). false forever if no font
@@ -592,21 +596,6 @@ namespace ItemDrawers.Game
             _countText.fontSize = _labelSize;
 
             _countText.color = new Color32(246, 236, 214, 255);
-            // Outline and face weight are two separate knobs, and three
-            // rounds of tuning went into one of them before that was clear.
-            // TMP grows the outline INWARD from the glyph edge, so raising
-            // outlineWidth eats the digit's own stroke rather than fringing
-            // it -- at 0.32 "the dark border is most of the numbers".
-            // Dropping to 0.18 fixed the border but left the numerals
-            // themselves looking thin, which is NOT an outline problem: the
-            // face is simply light at this size, and thickening the outline
-            // again to compensate only walks back into the first problem.
-            // So the outline stays at the 0.18 that read correctly, and the
-            // weight of the digits comes from _FaceDilate instead (set
-            // after activation below), which pushes the SDF face outward
-            // and is the only property that makes the strokes heavier.
-            _countText.outlineWidth = 0.18f;
-            _countText.outlineColor = new Color32(12, 9, 6, 235);
             // enableWordWrapping is obsolete under Unity 6000's TextMeshPro
             // (the brief predates that Unity version); textWrappingMode is
             // the current replacement.
@@ -615,34 +604,24 @@ namespace ItemDrawers.Game
 
             // Only now does TextMeshPro's own Awake get to run -- with a
             // font already assigned, so it never warns. It must run before
-            // ForceMeshUpdate below can produce a real mesh to measure.
+            // fontSharedMaterial and ForceMeshUpdate below because TMP's
+            // LoadFontAsset overwrites m_sharedMaterial during Awake.
             textGo.SetActive(true);
 
-            // Deferred until after activation on purpose. fontMaterial is
-            // the per-instance material copy, and it only exists once TMP's
-            // own Awake has created it from the font asset -- the same
-            // not-yet-created material the class docstring describes. Set
-            // here it is guaranteed real; set above, alongside the other
-            // TMP properties, it would be reaching for it a frame early.
-            //
-            // fontMaterial rather than fontSharedMaterial: the shared one
-            // would push this weight onto every other TMP_Text using the
-            // same font asset, Valheim's own HUD included. It costs no
-            // extra batching, since outlineWidth/outlineColor above already
-            // force TMP to instance this text's material regardless.
-            //
-            // Dilation is applied in the shader against the signed-distance
-            // field, not to the generated mesh, so textBounds and the fit
-            // measurement below are unaffected and stay valid.
-            _countText.fontMaterial.SetFloat(ShaderUtilities.ID_FaceDilate, 0.15f);
+            _countRenderer = textGo.GetComponent<MeshRenderer>();
+            if (_countRenderer != null)
+            {
+                _countRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                _countRenderer.receiveShadows = false;
+            }
 
-            // Same tie-breaking fix as the icon atlas material -- see the
-            // renderQueue comment in DrawerIconAtlas for why draw order,
-            // not separation, is what actually settles this. One past the
-            // icon so the count draws last of all three label surfaces;
-            // they never overlap each other, so the exact order between
-            // them is arbitrary, but a defined one costs nothing.
-            _countText.fontMaterial.renderQueue = 2451;
+            // Assign the single shared material (outline, face dilate, render
+            // queue 2451) via fontSharedMaterial -- never touch outlineWidth,
+            // outlineColor, or fontMaterial on the instance, which would clone
+            // a unique Material per drawer and break batching into N SetPass +
+            // N DrawCalls.
+            var sharedMat = DrawerFont.SharedCountMaterial(font);
+            if (sharedMat != null) _countText.fontSharedMaterial = sharedMat;
 
             ComputeLayout(_labelSize, out _, out _, out _, out float targetWidth, out float targetHeight);
 
@@ -678,14 +657,12 @@ namespace ItemDrawers.Game
             }
             textGo.transform.localScale = new Vector3(scale, scale, scale);
 
-            // Hide the "88888" placeholder used for measurement -- this
-            // method can also run later, well after this drawer's own
-            // Awake/Hide already ran once (see NeedsFont / DrawerManager's
-            // retry), so it must not leave that placeholder on screen. The
-            // real count is (re)applied by the next Show() call.
-            _countText.enabled = false;
-
             _countTextConfigured = true;
+            // Force replacement of the "88888" measurement text before display
+            // (and deactivate the child immediately when hidden so Unity skips
+            // culling and rendering its MeshRenderer).
+            _displayedAmount = -1;
+            ShowCount();
         }
 
         /// <summary>
@@ -717,10 +694,12 @@ namespace ItemDrawers.Game
             bool visible = !string.IsNullOrEmpty(itemName) && DrawerIconAtlas.TryGetUv(itemName, out min, out max);
 
             ShowIcon(visible, itemName, min, max);
-            ShowCount(visible, amount);
 
+            _hasIcon = visible;
             _shownItem = itemName;
             _shownAmount = amount;
+
+            ShowCount();
         }
 
         private void ShowIcon(bool visible, string itemName, Vector2 min, Vector2 max)
@@ -729,13 +708,7 @@ namespace ItemDrawers.Game
             {
                 if (_iconRenderer == null) return;
 
-                if (!visible)
-                {
-                    _iconRenderer.enabled = false;
-                    return;
-                }
-
-                if (itemName != _shownItem && _quad != null)
+                if (visible && itemName != _shownItem && _quad != null)
                 {
                     // Repointing four UVs is the whole cost of changing a
                     // drawer's item. No new material, no atlas rebuild.
@@ -746,7 +719,8 @@ namespace ItemDrawers.Game
                     _quad.SetUVs(0, _uvs);
                 }
 
-                _iconRenderer.enabled = true;
+                LabelVisibility.ComputeTargets(_labelVisible, visible, _shownAmount, _countTextConfigured, out bool showIcon, out _);
+                _iconRenderer.enabled = showIcon;
             }
             catch (System.Exception ex)
             {
@@ -758,15 +732,34 @@ namespace ItemDrawers.Game
             }
         }
 
-        private void ShowCount(bool visible, int amount)
+        private void ShowCount()
         {
             try
             {
                 if (_countText == null) return;
 
-                bool showCount = visible && amount > 0;
-                _countText.enabled = showCount;
-                if (showCount) _countText.SetText("{0}", amount);
+                LabelVisibility.ComputeTargets(_labelVisible, _hasIcon, _shownAmount, _countTextConfigured, out _, out bool showCount);
+                var textGo = _countText.gameObject;
+
+                if (!showCount)
+                {
+                    if (_countText.enabled) _countText.enabled = false;
+                    if (_countRenderer != null && _countRenderer.enabled) _countRenderer.enabled = false;
+                    // Deactivating the child stops Unity from culling and submitting
+                    // the TMP MeshRenderer; _countText.enabled = false alone only
+                    // clears meshFilter.sharedMesh and leaves MeshRenderer active.
+                    if (textGo.activeSelf) textGo.SetActive(false);
+                    return;
+                }
+
+                if (!textGo.activeSelf) textGo.SetActive(true);
+                if (_countRenderer != null && !_countRenderer.enabled) _countRenderer.enabled = true;
+                if (!_countText.enabled) _countText.enabled = true;
+                if (_displayedAmount != _shownAmount)
+                {
+                    _countText.SetText("{0}", _shownAmount);
+                    _displayedAmount = _shownAmount;
+                }
             }
             catch (System.Exception ex)
             {
@@ -780,22 +773,25 @@ namespace ItemDrawers.Game
 
         public void Hide()
         {
+            _hasIcon = false;
             if (_iconRenderer != null) _iconRenderer.enabled = false;
-            if (_countText != null) _countText.enabled = false;
+            if (_countText != null)
+            {
+                if (_countText.enabled) _countText.enabled = false;
+                if (_countRenderer != null && _countRenderer.enabled) _countRenderer.enabled = false;
+                if (_countText.gameObject.activeSelf) _countText.gameObject.SetActive(false);
+            }
         }
 
-        /// <summary>Distance culling, driven by DrawerManager. A wall of unreadable text is wasted work.</summary>
+        /// <summary>Distance and backface culling, driven by DrawerManager. A wall of unreadable text is wasted work.</summary>
         public void SetLabelVisible(bool visible)
         {
-            if (_iconRenderer == null || _countText == null) return;
-            if (!visible)
-            {
-                _iconRenderer.enabled = false;
-                _countText.enabled = false;
-                return;
-            }
-            _iconRenderer.enabled = !string.IsNullOrEmpty(_shownItem);
-            _countText.enabled = _shownAmount > 0;
+            if (_labelVisible == visible) return;
+            _labelVisible = visible;
+
+            LabelVisibility.ComputeTargets(visible, _hasIcon, _shownAmount, _countTextConfigured, out bool showIcon, out _);
+            if (_iconRenderer != null) _iconRenderer.enabled = showIcon;
+            ShowCount();
         }
 
         private void OnDestroy()

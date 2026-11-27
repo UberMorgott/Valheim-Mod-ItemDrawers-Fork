@@ -124,6 +124,10 @@ namespace ItemDrawers.Game
 
         internal bool IsDirty => _dirty;
 
+        internal uint LoadedRevision => _loadedRevision;
+
+        internal uint CheckedRevision => _checkedRevision;
+
         internal Inventory GetForCaller()
         {
             RefreshFromZdo();
@@ -167,23 +171,23 @@ namespace ItemDrawers.Game
         /// docstring), so blocking its first load here too would leave it
         /// permanently stuck showing nothing.
         /// </summary>
-        internal bool RefreshFromZdo()
+        internal bool RefreshFromZdo() => RefreshFromZdo(ValidZdo());
+
+        internal bool RefreshFromZdo(ZDO zdo)
         {
-            if (_dirty && _loadedRevision != uint.MaxValue) return false;
+            if (zdo == null) return false;
+
+            uint revision = zdo.DataRevision;
+            if (!ViewSyncPolicy.ShouldCheckRefresh(_dirty, revision, _loadedRevision)) return false;
 
             // Like vanilla Container.Load: don't reload a container a player
             // (or a chest-UI mod) has open. Only while this peer owns it:
             // Container.SetInUse acts only for the owner (Container.cs:289),
             // so a UI closed after ownership moved away leaves m_inUse stuck
             // true on this peer, and gating on it alone would freeze the view
-            // for good.
-            if (_drawer.IsInUse() && _nview != null && _nview.IsOwner()) return false;
-
-            var zdo = ValidZdo();
-            if (zdo == null) return false;
-
-            uint revision = zdo.DataRevision;
-            if (revision == _loadedRevision) return false;
+            // for good. Checked after the revision gate so idle drawers pay
+            // only an integer compare.
+            if (_drawer.IsInUse() && zdo.IsOwner()) return false;
 
             // Any ZDO field bumps DataRevision -- WearNTear health and
             // support, and snow, which is Set every frame while it builds up.
@@ -361,11 +365,11 @@ namespace ItemDrawers.Game
         /// that found nothing to do, and ViewSlots is decoded only when they
         /// differ -- a revision bump from snow or wear does not decode.
         /// </summary>
-        internal bool NeedsReconcile()
+        internal bool NeedsReconcile() => NeedsReconcile(ValidZdo());
+
+        internal bool NeedsReconcile(ZDO zdo)
         {
-            if (_dirty) return false;
-            var zdo = ValidZdo();
-            if (zdo == null) return false;
+            if (_dirty || zdo == null) return false;
 
             uint revision = zdo.DataRevision;
             if (revision == _checkedRevision) return false;

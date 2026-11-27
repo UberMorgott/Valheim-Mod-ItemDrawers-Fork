@@ -192,6 +192,9 @@ namespace ItemDrawers.Game
             new HandledRequestCache<int>(HandledRequestLifetimeSeconds);
 
         private ZNetView _view;
+        private bool _isAlive;
+        private bool _hasFace;
+        private uint _faceRevision = ViewSyncPolicy.UnloadedRevision;
 
         // Captured once in Awake and never re-read from _view afterward:
         // OnDestroy needs this drawer's ZDOID to tell DrawerManager which
@@ -199,6 +202,25 @@ namespace ItemDrawers.Game
         // OnDestroy runs _view.GetZDO() may already be unusable.
         private ZDOID _zdoId = ZDOID.None;
         internal ZDOID ZdoId => _zdoId;
+
+        internal bool IsAlive => _isAlive;
+        internal bool HasFace => _hasFace;
+        internal Vector3 CachedPosition { get; private set; }
+        internal Vector3 CachedFacePosition { get; private set; }
+        internal Vector3 CachedFrontNormal { get; private set; }
+
+        /// <summary>
+        /// Valid ZDO without Unity's native Object.op_Inequality icall on the
+        /// per-frame hot path. Safe because _isAlive is set true in Awake only
+        /// after _view is validated and cleared in OnDestroy, while
+        /// ZNetView.ResetZDO nulls m_zdo immediately on unload.
+        /// </summary>
+        internal ZDO LiveZdo()
+        {
+            if (!_isAlive || ReferenceEquals(_view, null)) return null;
+            var zdo = _view.m_zdo;
+            return zdo != null && zdo.IsValid() ? zdo : null;
+        }
 
         internal DrawerTier Tier { get; private set; }
 
@@ -371,6 +393,16 @@ namespace ItemDrawers.Game
             _view.Register<long, int>(RpcGrantDeposit, RPC_GrantDeposit);
             _view.Register(RpcReqClear, RPC_RequestClear);
 
+            _isAlive = true;
+            _hasFace = Face != null;
+            CachedPosition = transform.position;
+            CachedFacePosition = _hasFace ? Face.transform.position : CachedPosition;
+            // DrawerMeshBuilder builds the recess, handle, faceplate and label
+            // toward the drawer's local +Z (DrawerRenderer.Attach places the
+            // label root at +Z and rotates it 180° around Y so its local -Z
+            // faces outward along drawer +Z).
+            CachedFrontNormal = transform.forward;
+
             All.Add(this);
 
             // Not RefreshFace() directly here: Unity does not guarantee
@@ -431,6 +463,7 @@ namespace ItemDrawers.Game
             // bypasses ZNetScene with the ZDO intact.
             FlushView(teardown: true);
 
+            _isAlive = false;
             All.Remove(this);
             DrawerManager.Instance?.Unregister(this);
 
@@ -550,21 +583,73 @@ namespace ItemDrawers.Game
             zdo.Set(KeyPrefabHash, next.ItemName);
             zdo.Set(KeyAmountHash, next.Amount);
 
-            DrawerManager.Instance?.MarkDirty(this);
-            RefreshFace();
+            RefreshFaceFromZdo(zdo, zdo.DataRevision, DrawerManager.Instance);
         }
 
         /// <summary>
-        /// Repaints the face from the current ZDO state. Cheap to call often:
-        /// DrawerRenderer.Show no-ops when nothing changed. Called directly
-        /// after a local WriteOwned, and periodically by DrawerManager for
-        /// drawers changed by other clients.
+        /// Repaints the face from the current ZDO state and keeps DrawerManager's
+        /// item index in sync. Cheap to call often: DrawerRenderer.Show no-ops
+        /// when nothing changed.
         /// </summary>
         public void RefreshFace()
         {
-            if (Face == null) return;
-            var s = Snapshot;
-            Face.Show(s.ItemName, s.Amount);
+            var zdo = LiveZdo();
+            if (zdo == null)
+            {
+                if (_hasFace) Face.Show("", 0);
+                return;
+            }
+            RefreshFaceFromZdo(zdo, zdo.DataRevision, DrawerManager.Instance);
+        }
+
+        private void RefreshFaceFromZdo(ZDO zdo, uint revision, DrawerManager manager)
+        {
+            string itemName = zdo.GetString(KeyPrefabHash, "");
+            int amount = zdo.GetInt(KeyAmountHash, 0);
+
+            manager?.UpdateItemIndex(this, itemName);
+            if (_hasFace) Face.Show(itemName, amount);
+
+            bool faceReady = string.IsNullOrEmpty(itemName)
+                || DrawerIconAtlas.IsBuilt
+                || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null;
+            if (faceReady) _faceRevision = revision;
+        }
+
+        /// <summary>
+        /// Single-pass per-frame maintenance driven by DrawerManager: reconciles
+        /// owned views, refreshes non-dirty views, retries late font setup, and
+        /// syncs replicated face/item-index changes. Idle drawers whose ZDO
+        /// DataRevision has not moved pay only three integer comparisons.
+        /// </summary>
+        internal void TickPerFrame(DrawerManager manager)
+        {
+            var zdo = LiveZdo();
+            if (zdo == null) return;
+
+            uint rev = zdo.DataRevision;
+            var view = View;
+            if (view != null)
+            {
+                bool dirty = view.IsDirty;
+                if (ViewSyncPolicy.NeedsReconcileCheck(_reconcileDeferred, dirty, rev, view.CheckedRevision)
+                    && zdo.IsOwner()
+                    && (_reconcileDeferred || view.NeedsReconcile(zdo)))
+                {
+                    ReconcileView();
+                    rev = zdo.DataRevision;
+                    dirty = view.IsDirty;
+                }
+
+                if (ViewSyncPolicy.NeedsViewRefresh(dirty, rev, view.LoadedRevision))
+                    view.RefreshFromZdo(zdo);
+            }
+
+            if (_hasFace && Face.NeedsFont)
+                Face.TryConfigureCountText();
+
+            if (ViewSyncPolicy.NeedsFaceSync(rev, _faceRevision))
+                RefreshFaceFromZdo(zdo, rev, manager);
         }
 
         // ---------- player interaction ----------
@@ -2058,11 +2143,6 @@ namespace ItemDrawers.Game
                     return;
             }
         }
-
-        /// <summary>Owner tick: a reconcile is due because the view's ZDO data needs one, or an earlier one was deferred until ownership settled.</summary>
-        internal bool ViewNeedsReconcile() =>
-            View != null && _view != null && _view.IsValid() && _view.IsOwner()
-            && (_reconcileDeferred || View.NeedsReconcile());
 
         internal string ViewDiag => View != null ? View.Describe() : "no view";
 

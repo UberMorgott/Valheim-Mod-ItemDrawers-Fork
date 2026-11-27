@@ -88,6 +88,7 @@ namespace ItemDrawers.Game
         public static DrawerManager Instance { get; private set; }
 
         private readonly SpatialGrid<DrawerComponent> _grid = new SpatialGrid<DrawerComponent>(8f);
+        private readonly DrawerItemIndex<DrawerComponent> _itemIndex = new DrawerItemIndex<DrawerComponent>();
         private readonly List<DrawerComponent> _all = new List<DrawerComponent>();
         private readonly HashSet<DrawerComponent> _dirty = new HashSet<DrawerComponent>();
 
@@ -105,7 +106,6 @@ namespace ItemDrawers.Game
         private readonly List<DrawerComponent> _viewFlushScratch = new List<DrawerComponent>(16);
 
         private float _cullTimer;
-        private int _syncCursor;
 
         private float _pickupTimer;
         private readonly List<DrawerComponent> _pickupScratch = new List<DrawerComponent>(16);
@@ -221,8 +221,9 @@ namespace ItemDrawers.Game
         {
             if (drawer == null || _all.Contains(drawer)) return;
             _all.Add(drawer);
-            var p = drawer.transform.position;
+            var p = drawer.CachedPosition;
             _grid.Insert(drawer, p.x, p.y, p.z);
+            _itemIndex.Upsert(drawer, drawer.Snapshot.ItemName, p.x, p.y, p.z);
 
             // Not drawer.RefreshFace() directly: this runs from inside
             // DrawerComponent.Awake, and Unity does not guarantee Awake
@@ -247,6 +248,13 @@ namespace ItemDrawers.Game
             _dirty.Remove(drawer);
             _viewDirty.Remove(drawer);
             _grid.Remove(drawer);
+            _itemIndex.Remove(drawer);
+        }
+
+        internal void UpdateItemIndex(DrawerComponent drawer, string itemName)
+        {
+            if (!ReferenceEquals(drawer, null))
+                _itemIndex.SetItem(drawer, itemName);
         }
 
         public void MarkDirty(DrawerComponent drawer)
@@ -286,36 +294,18 @@ namespace ItemDrawers.Game
         private void LateUpdate() => FlushViewWrites();
 
         /// <summary>
-        /// Owner-side reconcile of view changes, from this client or any
-        /// other. One revision comparison per owned drawer per frame unless
-        /// its ZDO data actually changed.
+        /// Single per-frame pass combining owner view reconciliation, view
+        /// refresh, late font retry, and replicated face/item-index sync.
+        /// Each drawer gates all ZDO reads on its ZDO DataRevision so idle
+        /// drawers pay only a few integer compares with zero native null checks.
         /// </summary>
-        private void ReconcileViews()
+        private void TickDrawers()
         {
             for (int i = 0; i < _all.Count; i++)
             {
                 var drawer = _all[i];
-                if (drawer != null && drawer.ViewNeedsReconcile()) drawer.ReconcileView();
-            }
-        }
-
-        /// <summary>
-        /// Rebuilds every non-dirty view whose ZDO data changed, in place
-        /// (the Inventory instance never changes). Mods that cache
-        /// GetInventory() or Container.m_inventory -- NoVikingLeftBehind
-        /// does -- otherwise read counts from whenever they last called
-        /// GetInventory and can take more than the drawer holds. Idle cost
-        /// is one revision comparison per drawer, no allocation. Runs after
-        /// ReconcileViews, so an owner's fresh publish is already current.
-        /// </summary>
-        private void RefreshViews()
-        {
-            for (int i = 0; i < _all.Count; i++)
-            {
-                var drawer = _all[i];
-                if (drawer == null) continue;
-                var view = drawer.View;
-                if (view != null && !view.IsDirty) view.RefreshFromZdo();
+                if (!ReferenceEquals(drawer, null) && drawer.IsAlive)
+                    drawer.TickPerFrame(this);
             }
         }
 
@@ -329,10 +319,7 @@ namespace ItemDrawers.Game
             if (_deferredWithdraws.Count > 0) TickDeferredWithdraws();
             if (_dirty.Count > 0) FlushDirty();
 
-            ReconcileViews();
-            RefreshViews();
-
-            SyncSomeFaces();
+            TickDrawers();
 
             if (_pendingWithdrawals.Count > 0)
                 _pendingWithdrawals.Tick(Time.time, RetryWithdrawal, GiveUpWithdrawal);
@@ -357,8 +344,10 @@ namespace ItemDrawers.Game
 
         /// <summary>
         /// Iterates dropped items and asks which drawers are near them --
-        /// never the reverse. Cost scales with items on the ground, which is
-        /// normally zero, rather than with the number of drawers.
+        /// never the reverse. Uses the O(1) item-keyed index so unmatched
+        /// ground drops do zero distance or ZDO work, and matching drops check
+        /// only drawers assigned to that exact item instead of scanning every
+        /// spatial cell in a 40 m radius.
         ///
         /// Enumerates <see cref="ItemDrop.s_instances"/> directly (confirmed
         /// present in Valheim 1.0 by decompiling assembly_valheim.dll) rather
@@ -369,7 +358,7 @@ namespace ItemDrawers.Game
         internal void RunAutoPickup()
         {
             var player = Player.m_localPlayer;
-            if (player == null || _all.Count == 0) return;
+            if (player == null || _all.Count == 0 || _itemIndex.DistinctItemCount == 0) return;
 
             var drops = ItemDrop.s_instances;
             if (drops == null || drops.Count == 0) return;
@@ -383,7 +372,8 @@ namespace ItemDrawers.Game
             {
                 var drop = drops[i];
                 if (drop == null) continue;
-                if ((drop.transform.position - playerPos).sqrMagnitude > scanRangeSq) continue;
+                var dropPos = drop.transform.position;
+                if ((dropPos - playerPos).sqrMagnitude > scanRangeSq) continue;
 
                 if (drop.m_nview == null || !drop.m_nview.IsValid()) continue;
                 // Cheated drops stay on the ground: a drawer keeps only name + count.
@@ -394,7 +384,8 @@ namespace ItemDrawers.Game
                     : drop.name.Replace("(Clone)", "");
 
                 _pickupScratch.Clear();
-                QueryNear(drop.transform.position, radius, _pickupScratch);
+                _itemIndex.QueryNear(itemName, dropPos.x, dropPos.y, dropPos.z, radius, _pickupScratch);
+                if (_pickupScratch.Count == 0) continue;
 
                 // Find the drawer that wants this drop BEFORE worrying about
                 // who owns it. Ownership is only needed to actually take the
@@ -404,10 +395,14 @@ namespace ItemDrawers.Game
                 for (int d = 0; d < _pickupScratch.Count; d++)
                 {
                     var candidate = _pickupScratch[d];
-                    if (candidate == null) continue;
+                    if (ReferenceEquals(candidate, null) || !candidate.IsAlive) continue;
 
                     var snapshot = candidate.Snapshot;
-                    if (!snapshot.IsAssigned || snapshot.ItemName != itemName) continue;
+                    if (!snapshot.IsAssigned || snapshot.ItemName != itemName)
+                    {
+                        _itemIndex.SetItem(candidate, snapshot.ItemName);
+                        continue;
+                    }
 
                     // A full drawer takes nothing, and the scan order is
                     // fixed: stopping at one meant a drop next to a wall of
@@ -428,7 +423,9 @@ namespace ItemDrawers.Game
                     var chosen = gate(drop, target) as DrawerComponent;
                     if (chosen == null) continue;
                     // Only another candidate of this pass (near, same item, room); else the target stands.
-                    if (chosen != target && _pickupScratch.Contains(chosen) && chosen.Snapshot.ItemName == itemName
+                    if (chosen != target
+                        && _itemIndex.IsWithinRadius(chosen, dropPos.x, dropPos.y, dropPos.z, radius)
+                        && chosen.Snapshot.ItemName == itemName
                         && chosen.Snapshot.Amount < chosen.Capacity)
                         target = chosen;
                 }
@@ -480,7 +477,7 @@ namespace ItemDrawers.Game
 
                     case DrawerComponent.DepositRoute.Foreign:
                         if (!target.TrySubmitForeignDeposit(
-                                itemName, drop.m_itemData.m_stack, drop.transform.position, out accepted))
+                                itemName, drop.m_itemData.m_stack, dropPos, out accepted))
                             continue;
                         break;
 
@@ -602,41 +599,8 @@ namespace ItemDrawers.Game
         private void FlushDirty()
         {
             foreach (var drawer in _dirty)
-                if (drawer != null) drawer.RefreshFace();
+                if (!ReferenceEquals(drawer, null) && drawer.IsAlive) drawer.RefreshFace();
             _dirty.Clear();
-        }
-
-        /// <summary>
-        /// Drawers another client changed: their ZDO values arrive by
-        /// replication with no local event, so a slice of the list is
-        /// re-read each frame. Show() returns immediately when nothing
-        /// changed, so this is a cheap comparison, not a rebuild.
-        ///
-        /// Also retries a renderer's count-text font here if it's still
-        /// unresolved (DrawerRenderer.NeedsFont): Awake only gets one
-        /// attempt at DrawerFont.Shared, and that first attempt can
-        /// legitimately fail (Valheim's own UI may not have created any
-        /// TMP_Text yet that early) without the failure being permanent.
-        /// This reuses the same rotating slice rather than a second scan,
-        /// so a fontless drawer gets retried about as often as its face
-        /// already gets re-synced.
-        /// </summary>
-        private void SyncSomeFaces()
-        {
-            if (_all.Count == 0) return;
-
-            int slice = Mathf.Max(1, _all.Count / 30);   // whole list about twice a second
-            for (int i = 0; i < slice; i++)
-            {
-                if (_syncCursor >= _all.Count) _syncCursor = 0;
-                var drawer = _all[_syncCursor++];
-                if (drawer == null) continue;
-
-                if (drawer.Face != null && drawer.Face.NeedsFont)
-                    drawer.Face.TryConfigureCountText();
-
-                drawer.RefreshFace();
-            }
         }
 
         /// <summary>
@@ -711,14 +675,20 @@ namespace ItemDrawers.Game
 
             var eye = camera.transform.position;
             float radius = DrawerConfig.LabelDistance.Value;
-            float radiusSq = radius * radius;
+            float radiusSq = radius < 0f ? -1f : radius * radius;
 
             for (int i = 0; i < _all.Count; i++)
             {
                 var drawer = _all[i];
-                if (drawer == null) continue;
-                drawer.Face?.SetLabelVisible(
-                    (drawer.transform.position - eye).sqrMagnitude <= radiusSq);
+                if (ReferenceEquals(drawer, null) || !drawer.IsAlive || !drawer.HasFace) continue;
+
+                var facePos = drawer.CachedFacePosition;
+                var normal = drawer.CachedFrontNormal;
+                drawer.Face.SetLabelVisible(LabelVisibility.IsVisible(
+                    eye.x, eye.y, eye.z,
+                    facePos.x, facePos.y, facePos.z,
+                    normal.x, normal.y, normal.z,
+                    radiusSq));
             }
         }
     }
